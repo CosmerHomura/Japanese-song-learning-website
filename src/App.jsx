@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpenCheck, Bot, Check, ChevronDown, ChevronRight, Circle, CircleAlert, Download, Heart, LoaderCircle, MousePointer2, Pause, Pencil, Play, Plus, Save, Search, Sparkles, Trash2, Upload, UserRound, Volume2, WandSparkles, X } from 'lucide-react'
+import { BookOpenCheck, Bot, Check, ChevronDown, ChevronRight, Circle, CircleAlert, Download, Heart, LoaderCircle, MousePointer2, Pause, Pencil, Play, Plus, Save, Search, Settings, Sparkles, Trash2, Upload, Volume2, WandSparkles, X } from 'lucide-react'
 import AnnotatedLine from './components/AnnotatedLine'
+import SettingsDialog from './components/SettingsDialog'
 import { importedSongs } from './data/songs.generated'
 import { demoSongs } from './data/demoSongs'
 import { songArtworkBySource } from './data/songArtwork'
@@ -10,6 +11,7 @@ import { createAndStoreLocalSong, deleteLocalSong, loadLocalSongs, parseLrcFile,
 import { BACKUP_STORAGE_KEYS, createLearningBackup, inspectLearningBackup, songsFromLearningBackup } from './lib/learningBackup'
 import { correctionKey, hasKanji } from './lib/ruby'
 import { isSongHeadingLine, withoutSongHeadingLines } from './lib/songMetadata'
+import { annotationMatchesLine, reconcileLearningState } from './lib/learningIdentity'
 
 const PROGRESS_KEY = BACKUP_STORAGE_KEYS.progress
 const ANNOTATION_KEY = BACKUP_STORAGE_KEYS.annotations
@@ -80,9 +82,14 @@ function parseLrcTimestamp(value) {
 }
 
 export default function App() {
-  const savedProgress = useMemo(() => loadLocal(PROGRESS_KEY, {
-    learnedBySong: {}, reviewItems: [], favoriteSongIds: [], corrections: {}, meaningOverrides: {},
-  }), [])
+  const initialLearning = useMemo(() => reconcileLearningState(
+    [...importedSongs, ...demoSongs].map(withoutSongHeadingLines), {
+      progress: loadLocal(PROGRESS_KEY, {}), annotations: loadLocal(ANNOTATION_KEY, {}),
+      aiReviews: loadLocal(AI_REVIEW_KEY, {}), sentenceExplanations: loadLocal(SENTENCE_EXPLANATION_KEY, {}),
+    },
+  ), [])
+  const savedProgress = initialLearning.progress
+  const [learningState, setLearningState] = useState(initialLearning)
   const [activeSongId, setActiveSongId] = useState(initialSong().id)
   const [activePage, setActivePage] = useState('lesson')
   const [activeLineId, setActiveLineId] = useState(0)
@@ -92,17 +99,10 @@ export default function App() {
   const [practiceScope, setPracticeScope] = useState('all')
   const [practiceSessionLineIds, setPracticeSessionLineIds] = useState([])
   const [practicePosition, setPracticePosition] = useState(0)
-  const [learnedBySong, setLearnedBySong] = useState(savedProgress.learnedBySong || {})
-  const [reviewItems, setReviewItems] = useState(savedProgress.reviewItems || [])
-  const [favoriteSongIds, setFavoriteSongIds] = useState(savedProgress.favoriteSongIds || [])
-  const [corrections, setCorrections] = useState(savedProgress.corrections || {})
   const [meaningOverrides, setMeaningOverrides] = useState(savedProgress.meaningOverrides || {})
   const [playbackRate, setPlaybackRate] = useState(savedProgress.playbackRate || 1)
   const [localSongs, setLocalSongs] = useState([])
   const [localAudioUrls, setLocalAudioUrls] = useState({})
-  const [annotationsBySong, setAnnotationsBySong] = useState(() => loadLocal(ANNOTATION_KEY, {}))
-  const [aiReviews, setAiReviews] = useState(() => loadLocal(AI_REVIEW_KEY, {}))
-  const [sentenceExplanationsBySong, setSentenceExplanationsBySong] = useState(() => loadLocal(SENTENCE_EXPLANATION_KEY, {}))
   const [sentenceExplanationOpen, setSentenceExplanationOpen] = useState(null)
   const [sentenceExplanationJob, setSentenceExplanationJob] = useState(null)
   const [sentenceExplanationError, setSentenceExplanationError] = useState(null)
@@ -134,6 +134,7 @@ export default function App() {
   const [importError, setImportError] = useState('')
   const [librarySearch, setLibrarySearch] = useState('')
   const [deletingSongId, setDeletingSongId] = useState('')
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [backupBusy, setBackupBusy] = useState('')
   const [backupPreview, setBackupPreview] = useState(null)
   const [backupError, setBackupError] = useState('')
@@ -147,10 +148,29 @@ export default function App() {
   const artworkLookupRef = useRef(new Set())
   const importPreviewRequestRef = useRef(0)
   const importArtworkRequestRef = useRef(0)
-  const backupInputRef = useRef(null)
   const sentenceExplanationJobRef = useRef(null)
 
-  const allSongs = useMemo(() => [...importedSongs, ...localSongs, ...demoSongs].map(withoutSongHeadingLines).filter((song) => song.lines.length), [localSongs])
+  const allSongs = useMemo(() => [...importedSongs, ...localSongs, ...demoSongs].map(withoutSongHeadingLines).filter((song) => song.lines.length), [localSongs, importedSongs])
+  // Reconcile before rendering and before every write, including after Vite
+  // reloads generated lyrics or browser-local songs finish loading.
+  const learning = useMemo(() => reconcileLearningState(allSongs, learningState), [allSongs, learningState])
+  const { learnedBySong, reviewItems, favoriteSongIds, corrections, lyricSnapshots } = learning.progress
+  const { annotations: annotationsBySong, aiReviews, sentenceExplanations: sentenceExplanationsBySong } = learning
+  function updateLearningMap(key, update, inProgress = false) {
+    setLearningState((previous) => {
+      const next = reconcileLearningState(allSongs, previous)
+      const container = inProgress ? next.progress : next
+      container[key] = typeof update === 'function' ? update(container[key]) : update
+      return next
+    })
+  }
+  const setLearnedBySong = (update) => updateLearningMap('learnedBySong', update, true)
+  const setReviewItems = (update) => updateLearningMap('reviewItems', update, true)
+  const setFavoriteSongIds = (update) => updateLearningMap('favoriteSongIds', update, true)
+  const setCorrections = (update) => updateLearningMap('corrections', update, true)
+  const setAnnotationsBySong = (update) => updateLearningMap('annotations', update)
+  const setAiReviews = (update) => updateLearningMap('aiReviews', update)
+  const setSentenceExplanationsBySong = (update) => updateLearningMap('sentenceExplanations', update)
   const visibleLibrarySongs = useMemo(() => {
     const query = normalizeSongSearch(librarySearch)
     if (!query) return allSongs
@@ -168,7 +188,8 @@ export default function App() {
     ? `${import.meta.env.BASE_URL}${activeSong.audioFile.split('/').map((part) => encodeURIComponent(part)).join('/')}`
     : ''
   const activeLine = activeSong.lines.find((line) => line.id === activeLineId) || activeSong.lines[0]
-  const annotations = annotationsBySong[activeSong.id]
+  const annotations = useMemo(() => annotationsBySong[activeSong.id]?.filter((annotation) =>
+    activeSong.lines.some((line) => annotationMatchesLine(annotation, line))), [annotationsBySong, activeSong])
   const activeAnnotation = annotations?.find((line) => line.id === activeLine.id)
   const activeLineReading = activeAnnotation?.tokens
     .filter((token) => !token.is_symbol)
@@ -200,8 +221,8 @@ export default function App() {
   const readySentenceCount = activeSong.lines.filter((line) => hasCachedSentenceExplanation(currentSentenceCache, line)).length
 
   useEffect(() => {
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify({ learnedBySong, reviewItems, favoriteSongIds, corrections, meaningOverrides, playbackRate }))
-  }, [learnedBySong, reviewItems, favoriteSongIds, corrections, meaningOverrides, playbackRate])
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify({ learnedBySong, reviewItems, favoriteSongIds, corrections, meaningOverrides, playbackRate, lyricSnapshots }))
+  }, [learnedBySong, reviewItems, favoriteSongIds, corrections, meaningOverrides, playbackRate, lyricSnapshots])
 
   useEffect(() => { localStorage.setItem(ANNOTATION_KEY, JSON.stringify(annotationsBySong)) }, [annotationsBySong])
   useEffect(() => { localStorage.setItem(AI_REVIEW_KEY, JSON.stringify(aiReviews)) }, [aiReviews])
@@ -246,21 +267,25 @@ export default function App() {
   }, [toast])
 
   useEffect(() => {
-    const cached = annotationsBySong[activeSong.id]
-    if (cached?.length === activeSong.lines.length) return undefined
+    const cached = (annotationsBySong[activeSong.id] || []).filter((annotation) => activeSong.lines.some((line) => annotationMatchesLine(annotation, line)))
+    const missing = activeSong.lines.filter((line) => !cached.some((annotation) => annotationMatchesLine(annotation, line)))
+    if (!missing.length) { setAnnotating(false); return undefined }
     let abandoned = false
     setAnnotating(true)
     setAnnotationError('')
-    annotateSongLines(activeSong.lines)
+    annotateSongLines(missing)
       .then((annotation) => {
-        if (!abandoned) setAnnotationsBySong((all) => ({ ...all, [activeSong.id]: annotation }))
+        if (!missing.every((line) => annotation.some((item) => annotationMatchesLine(item, line)))) throw new Error('注音与歌词内容不匹配')
+        if (!abandoned) setAnnotationsBySong((all) => ({ ...all, [activeSong.id]: [
+          ...cached, ...annotation.map((item) => ({ ...item, text: missing.find((line) => line.id === item.id)?.text })),
+        ] }))
       })
       .catch(() => {
         if (!abandoned) setAnnotationError('自动注音服务未连接。请使用 npm.cmd run dev 启动完整学习环境。')
       })
       .finally(() => { if (!abandoned) setAnnotating(false) })
     return () => { abandoned = true }
-  }, [activeSong.id, activeSong.lines, annotationsBySong])
+  }, [activeSong.id, activeSong.lines, annotationsBySong[activeSong.id]])
 
   useEffect(() => {
     const audio = audioRef.current
@@ -609,7 +634,7 @@ export default function App() {
     setBackupError('')
     try {
       const records = await loadLocalSongs()
-      const progressState = { learnedBySong, reviewItems, favoriteSongIds, corrections, meaningOverrides, playbackRate }
+      const progressState = { learnedBySong, reviewItems, favoriteSongIds, corrections, meaningOverrides, playbackRate, lyricSnapshots }
       const blob = createLearningBackup(records, {
         progress: progressState, annotations: annotationsBySong, aiReviews,
         sentenceExplanations: sentenceExplanationsBySong,
@@ -637,6 +662,7 @@ export default function App() {
     setBackupError('')
     try {
       setBackupPreview(await inspectLearningBackup(file))
+      return true
     } catch (error) {
       setBackupError(error instanceof Error ? error.message : '无法读取备份文件。')
     } finally {
@@ -772,6 +798,10 @@ export default function App() {
       setReviewItems((previous) => previous.filter((item) => item.songId !== song.id))
       setFavoriteSongIds((previous) => previous.filter((songId) => songId !== song.id))
       setCorrections((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => !key.startsWith(`${song.id}:`))))
+      setLearningState((previous) => {
+        const { [song.id]: removed, ...lyricSnapshots } = previous.progress.lyricSnapshots || {}
+        return { ...previous, progress: { ...previous.progress, lyricSnapshots } }
+      })
       if (song.id === activeSong.id) {
         const nextSong = allSongs.find((item) => item.id !== song.id) || initialSong()
         chooseSong(nextSong.id)
@@ -1043,7 +1073,7 @@ export default function App() {
     <header className="topbar">
       <button className="brand" type="button" onClick={showLessonPage} aria-label="UTA 首页"><span className="brand-mark">う</span><span>UTA<span className="brand-dot">.</span></span></button>
       <nav className="main-nav" aria-label="主导航"><button className={activePage === 'lesson' ? 'active' : ''} type="button" onClick={showLessonPage}>发音学习</button><button className={activePage === 'library' ? 'active' : ''} type="button" onClick={() => showLibraryPage()}>歌曲库</button><button type="button" onClick={showReviewQueue}>复习</button></nav>
-      <div className="top-actions"><button className="icon-button" type="button" onClick={focusLibrarySearch} aria-label="搜索歌曲"><Search size={20} /></button><button className="avatar" type="button" aria-label="个人中心"><UserRound size={15} /></button></div>
+      <div className="top-actions"><button className="icon-button" type="button" onClick={focusLibrarySearch} aria-label="搜索歌曲"><Search size={20} /></button><button className="settings-trigger" type="button" onClick={() => setSettingsOpen(true)} aria-label="设置"><Settings size={19} /><span>设置</span></button></div>
     </header>
 
     <main id="top">
@@ -1090,7 +1120,7 @@ export default function App() {
           {!practiceActive && <div className="pronunciation-strip"><div><span className="strip-index">{annotating ? 'ANNOTATING' : annotationError ? 'OFFLINE' : 'AUTO READY'}</span><b>{annotating ? '正在为整首歌词生成读音…' : annotationError || '点击带假名的汉字词，可在右侧修改读音'}</b></div><span className="source-badge"><WandSparkles size={13} /> SudachiPy + 本地日中词典</span></div>}
           <div className="audio-tools"><p className="audio-play-tip"><Volume2 size={13} /> {audioUrl ? practiceActive ? '先听这一句，再尝试自己读出歌词。' : '点击每句右侧的播放按钮，系统会提前 0.5 秒进入本句，并播到下一句。' : '未找到同名音频，仍可练习读音与词义。'}</p><label className="speed-control"><span>慢放</span><select value={playbackRate} onChange={(event) => choosePlaybackRate(Number(event.target.value))} aria-label="逐句播放速度"><option value={1}>1×</option><option value={0.75}>0.75×</option><option value={0.5}>0.5×</option><option value={0.25}>0.25×</option></select></label></div>
           {!practiceActive && <div className="sentence-explanation-status"><div><Sparkles size={15} /><span>{sentenceExplanationJob?.songId === activeSong.id ? `正在生成整句解析 ${sentenceExplanationJob.ready} / ${sentenceExplanationJob.total}` : readySentenceCount === activeSong.lines.length ? `整首歌的 ${readySentenceCount} 句解析已就绪` : `整句解析已准备 ${readySentenceCount} / ${activeSong.lines.length} 句`}</span></div>{readySentenceCount < activeSong.lines.length && <button type="button" disabled={Boolean(sentenceExplanationJob)} onClick={generateCurrentSongExplanations}>{sentenceExplanationJob?.songId === activeSong.id ? '生成中…' : '生成剩余解析'}</button>}</div>}
-          {!practiceActive && readySentenceCount < activeSong.lines.length && <p className="sentence-explanation-disclosure">生成时会将歌词及已有译文发送给 DeepSeek，可能产生 API 调用费用。</p>}
+          {!practiceActive && readySentenceCount < activeSong.lines.length && <p className="sentence-explanation-disclosure">生成时会将歌词及已有译文发送给设置中的 AI 服务，可能产生 API 调用费用。</p>}
           {!practiceActive && sentenceExplanationError?.songId === activeSong.id && <p className="sentence-explanation-error" role="alert"><CircleAlert size={13} /> {sentenceExplanationError.message}</p>}
           {!practiceActive && <div className="practice-launch"><div><b>把这一句真正练会</b><span>先听、自己读并猜意思，再揭晓答案。</span></div><div><button className="practice-start" type="button" onClick={() => startPractice('all', activeSong.id, activeLine.id)}><BookOpenCheck size={15} /> 开始逐句练习</button>{currentSongReviewCount > 0 && <button className="practice-review-start" type="button" onClick={() => startPractice('review')}>只练待复习的 {currentSongReviewCount} 句</button>}</div></div>}
           {practiceActive && <section className="guided-card" id="guided-practice" aria-label="逐句练习卡片">
@@ -1168,7 +1198,7 @@ export default function App() {
 
       {activePage === 'library' && <section className="library-section library-page" id="library" aria-labelledby="library-title">
         <div className="library-top"><div><p className="eyebrow">YOUR IMPORTED SONGS</p><h2 id="library-title">歌曲库</h2><p>从已导入的歌词中选一首，继续练习发音与词汇。</p></div><div className="library-top-actions"><label className="library-search"><Search size={14} /><input id="library-search" type="search" value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="搜索歌名或歌手" aria-label="搜索歌名或歌手" />{librarySearch && <button type="button" onClick={() => setLibrarySearch('')} aria-label="清除搜索"><X size={13} /></button>}</label><span className="library-count">{librarySearch ? `找到 ${visibleLibrarySongs.length} / ${allSongs.length} 首` : `已导入 ${allSongs.length} 首`}</span><button className="library-import-trigger" type="button" onClick={openImportDialog}><Upload size={14} /> 导入歌曲</button></div></div>
-        <div className="library-backup-bar"><div><b>保存你的学习记录</b><span>导出歌曲、原声音频、读音修正与进度；换浏览器时可从文件恢复。</span></div><div className="library-backup-actions"><button type="button" onClick={exportLearningData} disabled={Boolean(backupBusy)}>{backupBusy === 'export' ? <LoaderCircle className="spin" size={14} /> : <Download size={14} />} 导出备份</button><button type="button" onClick={() => backupInputRef.current?.click()} disabled={Boolean(backupBusy)}>{backupBusy === 'inspect' ? <LoaderCircle className="spin" size={14} /> : <Upload size={14} />} 恢复备份</button><input ref={backupInputRef} type="file" accept=".uta-backup,application/octet-stream" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void prepareBackupRestore(file) }} hidden /></div></div>
+        <div className="library-backup-bar"><div><b>保存你的学习记录</b><span>在设置中统一管理数据备份与 AI 服务。</span></div><div className="library-backup-actions"><button type="button" onClick={() => setSettingsOpen(true)}><Settings size={14} /> 数据管理</button></div></div>
         {backupError && !backupPreview && <p className="library-backup-error" role="alert"><CircleAlert size={14} /> {backupError}</p>}
         {visibleLibrarySongs.length ? <div className="song-library-grid">{visibleLibrarySongs.map((song, index) => {
           const artwork = song.artworkUrl ? { artworkUrl: song.artworkUrl, sourceUrl: song.artworkSourceUrl, provider: song.artworkProvider } : songArtworkBySource[song.sourceFile]
@@ -1182,10 +1212,11 @@ export default function App() {
                 <span className="library-cover-shade" aria-hidden="true" />
                 <span className="library-card-index">{String(index + 1).padStart(2, '0')}</span>
                 {isCurrentSong && <span className="library-current-badge">正在学习</span>}
-                {song.isLocal && <span className="library-local-badge">本地导入</span>}
+                <span className="library-local-badge">{song.isLocal ? '网页导入 · 当前浏览器' : song.isDemo ? '内置原创示例' : '来自项目文件夹'}</span>
               </span>
               <span className="library-card-copy"><b>{song.title}</b><small>{song.artist}</small><span><BookOpenCheck size={13} /> {learnedCount} / {song.lines.length} 句已掌握</span></span>
             </button>
+            <p className="library-source-note">{song.isLocal ? '可在此删除当前浏览器保存的歌曲，不会删除电脑上的原文件。' : song.isDemo ? '随项目提供的原创练习示例，不提供网页删除入口。' : '如需移除，请将 LRC 移出 geci 后重新同步；构建部署版需重新构建并部署。'}</p>
             {artwork?.sourceUrl && <a className="library-artwork-source" href={artwork.sourceUrl} target="_blank" rel="noreferrer">封面来源 · {artwork.provider || 'Apple Music'}</a>}
             {song.isLocal && <button className="library-delete-button" type="button" disabled={deletingSongId === song.id} onClick={() => removeImportedSong(song)} aria-label={`删除 ${song.title}`} title="删除这首本地导入歌曲"><Trash2 size={13} /> {deletingSongId === song.id ? '删除中' : '删除'}</button>}
           </article>
@@ -1195,6 +1226,7 @@ export default function App() {
 
     <footer><span>UTA. Learn Japanese, one lyric at a time.</span><span>自动注音在本机生成 · 词义数据：<a href="https://github.com/tomoshi-app/tomoshi-dict-data" target="_blank" rel="noreferrer">Tomoshi / EDRDG</a> · AI 请求仅在你主动点击后发起</span></footer>
 
+    {settingsOpen && <SettingsDialog onClose={() => setSettingsOpen(false)} onExport={exportLearningData} onRestore={async (file) => { const ready = await prepareBackupRestore(file); if (ready) setSettingsOpen(false) }} backupBusy={backupBusy} backupError={backupError} />}
     {backupPreview && <div className="backup-backdrop" role="presentation" onClick={() => { if (backupBusy !== 'restore') { setBackupPreview(null); setBackupError('') } }}><section className="backup-dialog" role="dialog" aria-modal="true" aria-labelledby="backup-dialog-title" onClick={(event) => event.stopPropagation()}>
       <button className="backup-close" type="button" disabled={backupBusy === 'restore'} onClick={() => { setBackupPreview(null); setBackupError('') }} aria-label="关闭备份预览"><X size={18} /></button>
       <p className="eyebrow">RESTORE LOCAL DATA</p><h2 id="backup-dialog-title">确认恢复备份</h2>
@@ -1218,7 +1250,7 @@ export default function App() {
         <div className="import-lines-heading"><div><b>歌词与时间轴</b><span>可修改时间、日文、中文译文；保存时会按时间排序。</span></div><button type="button" onClick={addImportLine}><Plus size={13} /> 添加一句</button></div>
         <ol className="import-preview-lines">{importDraft.lines.map((line, index) => <li key={line.draftId}><span>{String(index + 1).padStart(2, '0')}</span><div><label>时间戳<input value={line.timeText} onChange={(event) => updateImportLine(line.draftId, 'timeText', event.target.value)} placeholder="00:12.345" aria-label={`第 ${index + 1} 句时间戳`} /></label><label>日文歌词<input value={line.text} onChange={(event) => updateImportLine(line.draftId, 'text', event.target.value)} maxLength={500} lang="ja" aria-label={`第 ${index + 1} 句日文歌词`} /></label><label>中文译文<input value={line.translation} onChange={(event) => updateImportLine(line.draftId, 'translation', event.target.value)} maxLength={500} aria-label={`第 ${index + 1} 句中文译文`} placeholder="没有译文可留空" /></label></div><button className="import-remove-line" type="button" onClick={() => removeImportLine(line.draftId)} aria-label={`删除第 ${index + 1} 句`} title="删除这一句"><Trash2 size={14} /></button></li>)}</ol>
       </section>}
-      <p className="import-ai-disclosure"><Sparkles size={14} /> 点击确认后，会把这首歌的歌词分批发送给 DeepSeek 生成逐句解析，可能产生 API 调用费用。生成期间请保持页面打开；若中途失败，歌曲仍会保存，可在学习页继续生成。</p>
+      <p className="import-ai-disclosure"><Sparkles size={14} /> 点击确认后，会把这首歌的歌词分批发送给设置中的 AI 服务 生成逐句解析，可能产生 API 调用费用。生成期间请保持页面打开；若中途失败，歌曲仍会保存，可在学习页继续生成。</p>
       {importAiProgress && <p className="import-ai-progress" role="status"><LoaderCircle className="spin" size={14} /> 歌曲已保存，正在生成整句解析：{importAiProgress.ready} / {importAiProgress.total} 句</p>}
       {importError && <p className="song-import-error"><CircleAlert size={14} /> {importError}</p>}
       <div className="song-import-actions"><button type="button" onClick={closeImportDialog} disabled={importBusy}>取消</button><button className="song-import-submit" type="submit" disabled={importBusy || importPreparing || importArtworkStatus === 'loading'}>{importBusy ? <LoaderCircle className="spin" size={14} /> : <Upload size={14} />}{importBusy ? importAiProgress ? '正在生成解析…' : '正在导入…' : '确认导入并生成解析'}</button></div>

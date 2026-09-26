@@ -1,3 +1,5 @@
+import { aiRequestHeaders } from './aiSettings'
+
 const apiOrigin = import.meta.env.VITE_ANNOTATION_API_URL || 'http://127.0.0.1:8000'
 
 export async function annotateSongLines(lines) {
@@ -23,14 +25,15 @@ export async function searchSongArtwork(title, artist = '') {
   }
 }
 
-async function postAi(path, payload) {
+async function postAi(path, payload, settings, signal) {
   const response = await fetch(`${apiOrigin}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...aiRequestHeaders(settings) },
+    signal,
     body: JSON.stringify(payload),
   })
   const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(body.detail || 'AI 服务暂不可用')
+  if (!response.ok) throw new Error(typeof body.detail === 'string' ? body.detail : 'AI 服务暂不可用，请检查配置')
   return body
 }
 
@@ -49,4 +52,19 @@ export function explainSelectionWithAi(payload) {
 
 export function explainSentenceBatchWithAi(lines) {
   return postAi('/api/ai/explain-sentences', { lines })
+}
+
+export async function getAiStatus(signal) {
+  const response = await fetch(`${apiOrigin}/api/ai/status`, { signal })
+  if (!response.ok) throw new Error('无法读取 AI 服务状态')
+  return response.json()
+}
+
+export async function testAiConnection(settings, signal) {
+  try {
+    return await postAi('/api/ai/test', {}, settings, signal)
+  } catch (error) {
+    if (error instanceof TypeError) throw new Error('无法连接网站后端，请确认服务已启动。')
+    throw error
+  }
 }

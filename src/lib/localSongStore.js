@@ -1,4 +1,5 @@
 import { isCreditLine, isSongHeadingLine } from './songMetadata.js'
+import { decodeLrcBytes } from './lrcEncoding.js'
 
 const DATABASE_NAME = 'uta-local-song-library'
 const DATABASE_VERSION = 1
@@ -38,12 +39,7 @@ function fileBaseName(fileName) {
 }
 
 async function decodeLrcFile(file) {
-  const buffer = await file.arrayBuffer()
-  const encodings = ['utf-8', 'gb18030', 'gbk']
-  for (const encoding of encodings) {
-    try { return new TextDecoder(encoding, { fatal: true }).decode(buffer) } catch { /* Try the next encoding. */ }
-  }
-  return new TextDecoder('utf-8').decode(buffer)
+  return decodeLrcBytes(await file.arrayBuffer(), file.name)
 }
 
 export async function parseLrcFile(file) {
