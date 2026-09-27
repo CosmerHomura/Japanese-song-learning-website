@@ -11,12 +11,14 @@
     "build": "npm run lyrics:sync && vite build",
     "test:backup": "node --test tests/learningBackup.test.mjs",
     "test:lyrics": "node --test tests/lrcEncoding.test.mjs tests/learningIdentity.test.mjs",
+    "test:readings": "node --test tests/readingDisplay.test.mjs tests/readingComponents.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "wanakana": "^5.3.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.0.2",

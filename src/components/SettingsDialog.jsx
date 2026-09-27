@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Database, Download, Eye, EyeOff, KeyRound, LoaderCircle, Save, Upload, X } from 'lucide-react'
+import { Database, Download, Eye, EyeOff, KeyRound, Languages, LoaderCircle, Save, Upload, X } from 'lucide-react'
 import { clearAiSettings, DEFAULT_AI_SETTINGS, loadAiSettings, saveAiSettings } from '../lib/aiSettings'
 import { getAiStatus, testAiConnection } from '../lib/annotationApi'
 
-export default function SettingsDialog({ onClose, onExport, onRestore, backupBusy, backupError, initialTab = 'data' }) {
+export default function SettingsDialog({ onClose, onExport, onRestore, backupBusy, backupError, readingStyle = 'hiragana', onReadingStyleChange, initialTab = 'data' }) {
   const [tab, setTab] = useState(initialTab)
   const [draft, setDraft] = useState(loadAiSettings)
   const [visible, setVisible] = useState(false)
@@ -79,8 +79,15 @@ export default function SettingsDialog({ onClose, onExport, onRestore, backupBus
   return <div className="settings-backdrop" onClick={onClose}>
     <section className="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title" tabIndex={-1} ref={dialogRef} onClick={(event) => event.stopPropagation()}>
       <header className="settings-heading"><div><p className="eyebrow">MAKE IT YOURS</p><h2 id="settings-title">设置</h2><p>管理学习数据，连接你的 AI 服务。</p></div><button type="button" className="settings-close" onClick={onClose} aria-label="关闭设置"><X size={21} /></button></header>
-      <div className="settings-tabs" aria-label="设置分类"><button type="button" aria-pressed={tab === 'data'} onClick={() => setTab('data')}><Database size={17} /> 数据管理</button><button type="button" aria-pressed={tab === 'ai'} onClick={() => setTab('ai')}><KeyRound size={17} /> AI 服务</button></div>
-      {tab === 'data' ? <div className="settings-content">
+      <div className="settings-tabs" aria-label="设置分类"><button type="button" aria-pressed={tab === 'reading'} onClick={() => setTab('reading')}><Languages size={17} /> 注音显示</button><button type="button" aria-pressed={tab === 'data'} onClick={() => setTab('data')}><Database size={17} /> 数据管理</button><button type="button" aria-pressed={tab === 'ai'} onClick={() => setTab('ai')}><KeyRound size={17} /> AI 服务</button></div>
+      {tab === 'reading' ? <div className="settings-content">
+        <h3>选择你习惯的注音</h3><p className="settings-description">切换后立即生效，并在当前浏览器保存。歌词原文不会改变。</p>
+        <fieldset className="reading-style-options"><legend>注音方式</legend>
+          <label><input type="radio" name="reading-style" value="hiragana" checked={readingStyle === 'hiragana'} onChange={() => onReadingStyleChange('hiragana')} /><span><b>平假名</b><small>夢 → ゆめ　·　学校 → がっこう</small></span></label>
+          <label><input type="radio" name="reading-style" value="romaji" checked={readingStyle === 'romaji'} onChange={() => onReadingStyleChange('romaji')} /><span><b>罗马音</b><small>夢 → yume　·　学校 → gakkou</small></span></label>
+        </fieldset>
+        <p className="settings-note">歌词上方注音、下方读音行、逐句练习及词语读音会随之切换。罗马音根据现有读音在本地转换，不额外调用 AI；长音使用连续元音表示。校对时仍输入假名，旁边会显示罗马音预览，已有修正不会被改写。</p>
+      </div> : tab === 'data' ? <div className="settings-content">
         <h3>让学习记录随你同行</h3><p className="settings-description">备份网页导入的歌曲和音频，以及学习进度、读音修正、复习记录与 AI 解析。</p>
         <div className="settings-data-card"><div><h4>导出网站数据</h4><p>下载一个 .uta-backup 文件，留存备份或迁移到其他浏览器。</p></div><button type="button" onClick={onExport} disabled={Boolean(backupBusy)}>{backupBusy === 'export' ? <LoaderCircle size={16} className="spin" /> : <Download size={16} />} 导出备份</button></div>
         <div className="settings-data-card"><div><h4>导入网站数据</h4><p>先预览备份内容，确认后覆盖当前浏览器的学习数据。</p></div><button type="button" onClick={() => fileRef.current?.click()} disabled={Boolean(backupBusy)}>{backupBusy === 'inspect' ? <LoaderCircle size={16} className="spin" /> : <Upload size={16} />} 导入备份</button><input ref={fileRef} type="file" accept=".uta-backup,application/octet-stream" hidden onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; if (file) onRestore(file) }} /></div>

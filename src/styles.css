@@ -284,6 +284,18 @@ body { background:radial-gradient(circle at 8% 4%,rgba(252,217,184,.45),transpar
 @media (max-width:650px) { .library-backup-bar { align-items:stretch; flex-direction:column; gap:13px; }.library-backup-actions { flex-wrap:wrap; }.backup-backdrop { align-items:end; padding:0; }.backup-dialog { width:100%; max-height:88vh; padding:26px 22px; box-shadow:none; } }
 
 /* Precomputed whole-line AI explanations */
+.reading-style-options { display:grid; gap:12px; margin:22px 0; padding:0; border:0; }
+.reading-style-options legend { margin-bottom:10px; color:#61766a; font-size:13px; }
+.reading-style-options label { display:flex; align-items:center; gap:12px; padding:15px; border:1px solid #c9d0c3; background:#fffdf6; cursor:pointer; }
+.reading-style-options label:has(input:checked) { border-color:#527361; background:#edf4eb; }
+.reading-style-options input { accent-color:#3f6b5d; }
+.reading-style-options b,.reading-style-options small { display:block; }
+.reading-style-options small { margin-top:5px; color:#718176; line-height:1.6; }
+.auto-lyric.romaji rt { font-size:10px; white-space:nowrap; }
+[data-reading-style="romaji"] .reading { letter-spacing:.01em; overflow-wrap:anywhere; }
+[data-reading-style="romaji"] .word-kana,[data-reading-style="romaji"] .guided-answer > p { overflow-wrap:anywhere; }
+[data-reading-style="romaji"] .guided-answer > p[lang="ja-Latn"] { font:500 21px/1.65 var(--sans); }
+@media (max-width:650px) { .settings-tabs { gap:12px; }.settings-tabs button { gap:5px; font-size:12px; } }
 .library-source-note { margin:0; padding:0 16px 14px; color:#65756b; font-size:11px; line-height:1.7; }
 .sentence-explanation-status { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:17px; padding:10px 12px; border:1px solid #c4d9ca; color:#476b5a; background:#edf6ee; font-size:11px; }
 .sentence-explanation-status > div { display:flex; align-items:center; gap:7px; }

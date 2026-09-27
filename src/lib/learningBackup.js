@@ -33,6 +33,7 @@ function checkState(manifest) {
     || Object.values(progress.corrections).some((reading) => typeof reading !== 'string')
     || Object.values(progress.meaningOverrides).some((meaning) => typeof meaning !== 'string')
     || (progress.playbackRate != null && ![1, 0.75, 0.5, 0.25].includes(progress.playbackRate))
+    || (progress.readingStyle != null && !['hiragana', 'romaji'].includes(progress.readingStyle))
     || (progress.lyricSnapshots != null && (!isRecord(progress.lyricSnapshots)
       || Object.values(progress.lyricSnapshots).some((snapshot) => !isRecord(snapshot) || !Array.isArray(snapshot.lines)
         || snapshot.lines.some((line) => !isRecord(line) || !Number.isSafeInteger(line.id) || typeof line.text !== 'string'))))
