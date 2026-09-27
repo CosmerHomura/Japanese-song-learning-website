@@ -10,6 +10,7 @@ export const BACKUP_STORAGE_KEYS = {
   annotations: 'uta-auto-annotations-v5',
   aiReviews: 'uta-ai-reviews-v1',
   sentenceExplanations: 'uta-sentence-explanations-v1',
+  aiUsage: 'uta-ai-usage-v1',
 }
 
 function isRecord(value) {
@@ -18,7 +19,7 @@ function isRecord(value) {
 
 function checkState(manifest) {
   if (!isRecord(manifest.progress) || !isRecord(manifest.annotations)
-    || !isRecord(manifest.aiReviews) || !isRecord(manifest.sentenceExplanations)) {
+    || !isRecord(manifest.aiReviews) || !isRecord(manifest.sentenceExplanations) || !isRecord(manifest.aiUsage)) {
     throw new Error('备份中的学习数据格式不正确。')
   }
   const progress = manifest.progress
@@ -93,6 +94,7 @@ export function createLearningBackup(songs, state) {
     annotations: state.annotations,
     aiReviews: state.aiReviews,
     sentenceExplanations: state.sentenceExplanations || {},
+    aiUsage: state.aiUsage || {},
     songs: songEntries,
   }
   checkState(manifest)
@@ -126,6 +128,7 @@ export async function inspectLearningBackup(file) {
   }
   // Backups created before whole-line explanations were added remain restorable.
   if (!Object.hasOwn(manifest, 'sentenceExplanations')) manifest.sentenceExplanations = {}
+  if (!Object.hasOwn(manifest, 'aiUsage')) manifest.aiUsage = {}
   checkState(manifest)
   if (manifest.songs.length > 1000) throw new Error('备份中的歌曲数量超出限制。')
   const ids = new Set()

@@ -1,0 +1,29 @@
+appId: com.cosmerhomura.uta
+productName: UTA
+asar: true
+
+directories:
+  output: out
+
+files:
+  - desktop/main.cjs
+  - desktop/preload.cjs
+  - desktop/assets/**
+  - package.json
+  - '!node_modules/**'
+
+extraResources:
+  - from: desktop/backend-dist/uta-backend
+    to: uta-backend
+
+win:
+  icon: desktop/assets/uta.ico
+  target:
+    - nsis
+  artifactName: UTA-Setup-${version}.${ext}
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true

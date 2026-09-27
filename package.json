@@ -1,15 +1,22 @@
 {
   "name": "uta-japanese-song-learning",
   "version": "0.1.0",
+  "description": "通过逐句跟唱学习日语歌词的桌面与网页应用",
+  "author": "CosmerHomura",
   "private": true,
   "type": "module",
+  "main": "desktop/main.cjs",
   "scripts": {
     "lyrics:sync": "node scripts/sync-lyrics.mjs",
     "api": "server\\.venv\\Scripts\\python.exe -m uvicorn app:app --app-dir server --reload",
     "web": "vite",
     "dev": "npm run lyrics:sync && concurrently --kill-others-on-fail -n api,web \"npm run api\" \"npm run web\"",
     "build": "npm run lyrics:sync && vite build",
-    "test:backup": "node --test tests/learningBackup.test.mjs",
+    "desktop:dev": "npm run lyrics:sync && concurrently --kill-others-on-fail -n web,desktop \"vite\" \"electron desktop/main.cjs --dev\"",
+    "desktop:backend": "server\\.venv\\Scripts\\python.exe -m PyInstaller --noconfirm --clean --distpath desktop\\backend-dist --workpath desktop\\backend-build desktop\\backend.spec",
+    "desktop:package": "npm run build && npm run desktop:backend && electron-builder --dir --win --x64",
+    "desktop:make": "npm run build && npm run desktop:backend && electron-builder --win nsis --x64",
+    "test:backup": "node --test tests/learningBackup.test.mjs tests/analysisShare.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -20,6 +27,8 @@
   "devDependencies": {
     "@vitejs/plugin-react": "^5.0.2",
     "concurrently": "^9.2.1",
+    "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
     "vite": "^7.1.7"
   }
 }
