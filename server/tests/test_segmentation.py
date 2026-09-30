@@ -32,6 +32,6 @@ class SegmentationTests(unittest.TestCase):
     @patch.object(service, 'call_deepseek_json', return_value={'segments': ['四月'], '_billing': {'total_cny': 0.1}})
     def test_ai_changed_text_is_rejected_but_billing_retained(self, call, lookup):
         from starlette.requests import Request
-        result = service.resegment_with_ai(service.SegmentationRequest(text='4月', line_text='4月に会う'), Request({'type': 'http', 'client': ('127.0.0.1', 1)}))
+        result = service.resegment_with_ai(service.SegmentationRequest(text='4月', line_text='4月に会う'), Request({'type': 'http', 'client': ('127.0.0.1', 1), 'headers': []}))
         self.assertEqual(result['tokens'], [])
         self.assertEqual(result['billing']['total_cny'], 0.1)

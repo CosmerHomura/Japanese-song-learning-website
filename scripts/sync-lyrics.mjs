@@ -1,6 +1,8 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { basename, extname, join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { isCreditLine, isSongHeadingLine } from '../src/lib/songMetadata.js'
+import { decodeLrcBytes } from '../src/lib/lrcEncoding.js'
 
 const sourceDirectory = join(process.cwd(), 'geci')
 const audioDirectory = join(process.cwd(), 'song')
@@ -21,8 +23,8 @@ function indexAudioFiles() {
 function parseTimestamp(minutes, seconds) { return Number(minutes) * 60 + Number(seconds) }
 function cleanMetadata(value) { return value.replace(/\s*\(.+?\)\s*/g, '').trim() }
 
-function parseLrcWithTranslations(buffer, fileName, index, audioFiles) {
-  const content = new TextDecoder('gbk').decode(buffer)
+export function parseLrcWithTranslations(buffer, fileName, audioFiles = new Map()) {
+  const content = decodeLrcBytes(buffer, fileName)
   const metadata = Object.fromEntries([...content.matchAll(/^\[(ti|ar|al):(.+)]$/gm)].map(([, key, value]) => [key, value.trim()]))
   const titleFromFile = basename(fileName, '.lrc').split('-').at(-1)
   const title = cleanMetadata(metadata.ti || titleFromFile)
@@ -60,12 +62,20 @@ function parseLrcWithTranslations(buffer, fileName, index, audioFiles) {
     .map(({ isHeading, ...line }, id) => ({ id, ...line, isHeading, translation: line.translation || '' }))
     .filter((line) => !line.isHeading)
     .map(({ isHeading, ...line }) => line)
-  return { id: `song-${index + 1}`, sourceFile: fileName, audioFile: audioFiles.get(basename(fileName, '.lrc')) || null, title, artist, album: metadata.al || '', duration: lines.at(-1)?.start || 0, lines }
+  return { id: `folder-${encodeURIComponent(fileName)}`, sourceFile: fileName, audioFile: audioFiles.get(basename(fileName, '.lrc')) || null, title, artist, album: metadata.al || '', duration: lines.at(-1)?.start || 0, lines }
 }
 
-const lrcFiles = readdirSync(sourceDirectory).filter((file) => file.endsWith('.lrc')).sort((a, b) => a.localeCompare(b, 'zh-CN'))
-const audioFiles = indexAudioFiles()
-const songs = lrcFiles.map((file, index) => parseLrcWithTranslations(readFileSync(join(sourceDirectory, file)), file, index, audioFiles)).filter((song) => song.lines.length)
-mkdirSync(outputDirectory, { recursive: true })
-writeFileSync(outputFile, `// This file is generated from /geci by scripts/sync-lyrics.mjs.\n// Do not edit it directly.\nexport const importedSongs = ${JSON.stringify(songs, null, 2)}\n`, 'utf8')
-console.log(`已从 geci 同步 ${songs.length} 首歌曲，匹配 ${songs.filter((song) => song.audioFile).length} 个音频，生成 ${outputFile}`)
+// Importing the parser in tests must not read or overwrite a user's library.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  try {
+    const lrcFiles = readdirSync(sourceDirectory).filter((file) => file.endsWith('.lrc')).sort((a, b) => a.localeCompare(b, 'zh-CN'))
+    const audioFiles = indexAudioFiles()
+    const songs = lrcFiles.map((file) => parseLrcWithTranslations(readFileSync(join(sourceDirectory, file)), file, audioFiles)).filter((song) => song.lines.length)
+    mkdirSync(outputDirectory, { recursive: true })
+    writeFileSync(outputFile, `// This file is generated from /geci by scripts/sync-lyrics.mjs.\n// Do not edit it directly.\nexport const importedSongs = ${JSON.stringify(songs, null, 2)}\n`, 'utf8')
+    console.log(`已从 geci 同步 ${songs.length} 首歌曲，匹配 ${songs.filter((song) => song.audioFile).length} 个音频，生成 ${outputFile}`)
+  } catch (error) {
+    console.error(`歌词同步失败：${error.message}`)
+    process.exitCode = 1
+  }
+}

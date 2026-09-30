@@ -39,3 +39,14 @@ test('an older app never overwrites a future learning schema', () => {
   assert.throws(() => saveLearningState(storage, { progress: {} }), /更新版本/)
   assert.equal(JSON.parse(storage.getItem(LEARNING_STATE_KEY)).progress.corrections.saved, 'かな')
 })
+
+test('reading choice and exact lyric snapshots survive the consolidated state', () => {
+  const storage = memoryStorage()
+  saveLearningState(storage, { progress: {
+    readingStyle: 'romaji',
+    lyricSnapshots: { 'folder-abc': { sourceFile: 'example.lrc', lines: [{ id: 1, text: '四月' }] } },
+  } })
+  const restored = loadLearningState(storage)
+  assert.equal(restored.progress.readingStyle, 'romaji')
+  assert.equal(restored.progress.lyricSnapshots['folder-abc'].lines[0].text, '四月')
+})

@@ -10,6 +10,8 @@ const state = {
     corrections: { 'local-test:0:0': 'ゆめ' },
     meaningOverrides: {},
     playbackRate: 0.75,
+    readingStyle: 'romaji',
+    lyricSnapshots: { 'local-test': { sourceFile: 'test.lrc', lines: [{ id: 0, text: '夢ならば' }] } },
   },
   annotations: {},
   aiReviews: {},
@@ -32,6 +34,8 @@ test('backed-up songs, audio and learning state round-trip', async () => {
   const inspection = await inspectLearningBackup(backup)
   const [restored] = songsFromLearningBackup(inspection)
   assert.equal(inspection.manifest.progress.corrections['local-test:0:0'], 'ゆめ')
+  assert.deepEqual(inspection.manifest.progress.lyricSnapshots, state.progress.lyricSnapshots)
+  assert.equal(inspection.manifest.progress.readingStyle, 'romaji')
   assert.equal(inspection.manifest.sentenceExplanations['local-test'][0].explanation.meaning, '如果是梦')
   assert.equal(restored.lines[0].translation, '如果是梦')
   assert.equal(restored.audioName, 'test.mp3')
@@ -59,6 +63,8 @@ test('backups created before whole-line analysis remain restorable', async () =>
   const metadataLength = new DataView(lengthBytes).getUint32(0, true)
   const manifest = JSON.parse(await backup.slice(headerSize, headerSize + metadataLength).text())
   delete manifest.sentenceExplanations
+  delete manifest.progress.lyricSnapshots
+  delete manifest.progress.readingStyle
   const metadata = new TextEncoder().encode(JSON.stringify(manifest))
   const nextLength = new Uint8Array(4)
   new DataView(nextLength.buffer).setUint32(0, metadata.byteLength, true)
@@ -68,4 +74,15 @@ test('backups created before whole-line analysis remain restorable', async () =>
   ])
   const inspected = await inspectLearningBackup(legacy)
   assert.deepEqual(inspected.manifest.sentenceExplanations, {})
+  assert.equal(inspected.manifest.progress.lyricSnapshots, undefined)
+  assert.equal(inspected.manifest.progress.readingStyle, undefined)
+})
+
+test('invalid lyric snapshots cannot be saved in backups', () => {
+  const invalid = { ...state, progress: { ...state.progress, lyricSnapshots: { broken: { lines: 'not an array' } } } }
+  assert.throws(() => createLearningBackup([], invalid), /学习记录格式不正确/)
+})
+
+test('unsupported reading styles are rejected by backup validation', () => {
+  assert.throws(() => createLearningBackup([], { ...state, progress: { ...state.progress, readingStyle: 'invalid' } }), /学习记录格式不正确/)
 })

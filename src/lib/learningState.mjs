@@ -4,7 +4,7 @@ export const LEARNING_STATE_VERSION = 2
 export const LEARNING_STATE_KEY = 'uta-learning-state-v2'
 
 const legacyKeys = ['progress', 'annotations', 'aiReviews', 'sentenceExplanations', 'aiUsage']
-const emptyProgress = () => ({ learnedBySong: {}, reviewItems: [], favoriteSongIds: [], corrections: {}, meaningOverrides: {}, playbackRate: 1 })
+const emptyProgress = () => ({ learnedBySong: {}, reviewItems: [], favoriteSongIds: [], corrections: {}, meaningOverrides: {}, lyricSnapshots: {}, readingStyle: 'hiragana', playbackRate: 1 })
 const record = value => value && typeof value === 'object' && !Array.isArray(value)
 
 function readJson(storage, key, fallback) {
@@ -23,6 +23,8 @@ function normalize(snapshot) {
       favoriteSongIds: Array.isArray(progress.favoriteSongIds) ? progress.favoriteSongIds : [],
       corrections: record(progress.corrections) ? progress.corrections : {},
       meaningOverrides: record(progress.meaningOverrides) ? progress.meaningOverrides : {},
+      lyricSnapshots: record(progress.lyricSnapshots) ? progress.lyricSnapshots : {},
+      readingStyle: progress.readingStyle === 'romaji' ? 'romaji' : 'hiragana',
       playbackRate: [1, .75, .5, .25].includes(progress.playbackRate) ? progress.playbackRate : 1,
     },
     annotations: record(snapshot.annotations) ? snapshot.annotations : {},

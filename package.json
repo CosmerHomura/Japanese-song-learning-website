@@ -17,13 +17,16 @@
     "desktop:package": "npm run build && npm run desktop:backend && electron-builder --dir --win --x64",
     "desktop:make": "npm run build && npm run desktop:backend && electron-builder --win nsis --x64",
     "test:backup": "node --test tests/learningBackup.test.mjs tests/analysisShare.test.mjs",
+    "test:lyrics": "node --test tests/lrcEncoding.test.mjs tests/learningIdentity.test.mjs",
+    "test:readings": "node --test tests/readingDisplay.test.mjs tests/readingComponents.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
     "electron-updater": "^6.8.9",
     "lucide-react": "^0.468.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "wanakana": "^5.3.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.0.2",

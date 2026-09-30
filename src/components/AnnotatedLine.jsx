@@ -1,4 +1,5 @@
 import { hasKanji, splitRuby } from '../lib/ruby'
+import { displayReading } from '../lib/readingDisplay'
 
 export default function AnnotatedLine({
   tokens,
@@ -6,6 +7,7 @@ export default function AnnotatedLine({
   songId,
   lineId,
   mode,
+  readingStyle = 'hiragana',
   selectedIndex,
   selectionRange,
   showSelectionAction,
@@ -17,7 +19,7 @@ export default function AnnotatedLine({
 }) {
   if (!tokens?.length) return <span className="auto-lyric loading-lyric">正在生成自动读音…</span>
 
-  return <span className="auto-lyric">
+  return <span className={`auto-lyric ${readingStyle === 'romaji' ? 'romaji' : ''}`}>
     {tokens.map((token) => {
       const key = `${songId}:${lineId}:${token.index}`
       if (token.is_symbol) return <span className="lyric-symbol" key={key}>{token.surface}</span>
@@ -35,8 +37,8 @@ export default function AnnotatedLine({
         onStartSelection?.(token.index)
       }} onPointerEnter={(event) => {
         if (event.buttons & 1) onExtendSelection?.(token.index)
-      }} onPointerUp={() => onFinishSelection?.()} onClick={(event) => { event.stopPropagation(); onSelectToken(token.index) }} aria-label={`${token.surface}，读音 ${reading}`}>
-        {annotatable && mode === 'reading' ? <ruby>{ruby.base}<rt>{ruby.ruby}</rt></ruby> : token.surface}
+      }} onPointerUp={() => onFinishSelection?.()} onClick={(event) => { event.stopPropagation(); onSelectToken(token.index) }} aria-label={`${token.surface}，读音 ${displayReading(reading, readingStyle, token, Boolean(corrections[key]))}`}>
+        {annotatable && mode === 'reading' ? <ruby>{ruby.base}<rt lang={readingStyle === 'romaji' ? 'ja-Latn' : 'ja'}>{displayReading(ruby.ruby, readingStyle)}</rt></ruby> : token.surface}
         {annotatable && mode === 'reading' ? ruby.suffix : ''}
       </button>
       {isRangeEnd && showSelectionAction && <button className="phrase-explain-button" type="button" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.preventDefault(); event.stopPropagation(); onExplainSelection?.() }}>AI 解释</button>}</span>
