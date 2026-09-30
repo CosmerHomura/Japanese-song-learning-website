@@ -1,4 +1,7 @@
-const apiOrigin = import.meta.env.VITE_ANNOTATION_API_URL || 'http://127.0.0.1:8000'
+const isViteDevelopment = globalThis.location?.port === '5173'
+const apiOrigin = import.meta.env.VITE_ANNOTATION_API_URL
+  || (isViteDevelopment ? 'http://127.0.0.1:8000' : globalThis.location?.origin)
+  || 'http://127.0.0.1:8000'
 
 export async function annotateSongLines(lines) {
   const response = await fetch(`${apiOrigin}/api/annotate/batch`, {
@@ -45,6 +48,10 @@ export function reviewSongWithAi(song) {
 
 export function explainSelectionWithAi(payload) {
   return postAi('/api/ai/explain-selection', payload)
+}
+
+export function reparseSegments(payload, ai = false) {
+  return postAi(ai ? '/api/ai/resegment' : '/api/annotate/segments', payload)
 }
 
 export function explainSentenceBatchWithAi(lines) {

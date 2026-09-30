@@ -4,6 +4,8 @@ node_modules
 .pip-temp
 server/.venv
 server/.env
+server/ai-settings.json
+server/model-catalog-cache/
 __pycache__/
 *.py[cod]
 server/data/tomoshi-dict-open.db
@@ -15,5 +17,8 @@ song/*
 !song/.gitkeep
 src/data/songs.generated.js
 dist
+out
+desktop/backend-build
+desktop/backend-dist
 .env.local
 .DS_Store
