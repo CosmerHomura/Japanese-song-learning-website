@@ -9,9 +9,9 @@ files:
   - desktop/main.cjs
   - desktop/preload.cjs
   - desktop/aiRequestPolicy.cjs
+  - desktop/updateManager.cjs
   - desktop/assets/**
   - package.json
-  - '!node_modules/**'
 
 extraResources:
   - from: desktop/backend-dist/uta-backend
@@ -26,5 +26,10 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
-  createDesktopShortcut: true
+  createDesktopShortcut: always
   createStartMenuShortcut: true
+
+publish:
+  provider: github
+  owner: CosmerHomura
+  repo: Japanese-song-learning-website

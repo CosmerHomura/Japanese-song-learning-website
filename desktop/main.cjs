@@ -4,6 +4,8 @@ const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
 const { assertPaidAiRequest } = require('./aiRequestPolicy.cjs')
+const { createUpdateManager } = require('./updateManager.cjs')
+const { autoUpdater } = require('electron-updater')
 
 app.setName('UTA')
 
@@ -14,6 +16,15 @@ const desktopManagementToken = crypto.randomBytes(32).toString('hex')
 const tomoshiReleasesUrl = 'https://github.com/tomoshi-app/tomoshi-dict-data/releases'
 let backendProcess = null
 let mainWindow = null
+let updateCheckTimer = null
+const updateManager = createUpdateManager({
+  app,
+  updater: autoUpdater,
+  supported: process.platform === 'win32' && app.isPackaged && !isDevelopment,
+  notify: status => {
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('uta:update:status-changed', status)
+  },
+})
 
 function backendCommand() {
   if (isDevelopment) {
@@ -306,6 +317,14 @@ function installDesktopIpc() {
     assertPaidAiRequest(endpoint, event.senderFrame?.url || '', isDevelopment ? 'http://127.0.0.1:5173' : backendOrigin)
     return dictionaryRequest(endpoint, { method: 'POST', body: JSON.stringify(payload) })
   })
+  const assertAppPage = event => {
+    const expectedOrigin = isDevelopment ? 'http://127.0.0.1:5173' : backendOrigin
+    if (new URL(event.senderFrame?.url || 'about:blank').origin !== expectedOrigin) throw new Error('更新操作只能从 UTA 页面发起。')
+  }
+  ipcMain.handle('uta:update:status', event => { assertAppPage(event); return updateManager.getStatus() })
+  ipcMain.handle('uta:update:check', event => { assertAppPage(event); return updateManager.check() })
+  ipcMain.handle('uta:update:download', event => { assertAppPage(event); return updateManager.download() })
+  ipcMain.handle('uta:update:install', event => { assertAppPage(event); updateManager.install() })
 }
 
 function stopBackend() {
@@ -330,6 +349,12 @@ if (!hasSingleInstanceLock) {
       await createWindow()
       installApplicationMenu()
       void maybePromptForDictionary().catch((error) => showDictionaryFailure(error.message))
+      if (app.isPackaged && !isDevelopment) {
+        updateCheckTimer = setTimeout(() => {
+          void updateManager.check()
+          updateCheckTimer = setInterval(() => { void updateManager.check() }, 6 * 60 * 60 * 1000)
+        }, 10_000)
+      }
     } catch (error) {
       stopBackend()
       dialog.showErrorBox('UTA 启动失败', error.message)
@@ -337,6 +362,9 @@ if (!hasSingleInstanceLock) {
     }
   })
 
-  app.on('before-quit', stopBackend)
+  app.on('before-quit', () => {
+    if (updateCheckTimer) clearTimeout(updateCheckTimer)
+    stopBackend()
+  })
   app.on('window-all-closed', () => app.quit())
 }

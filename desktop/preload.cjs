@@ -19,4 +19,15 @@ contextBridge.exposeInMainWorld('utaDesktop', {
     saveSettings: (settings) => ipcRenderer.invoke('uta:ai:save-settings', settings),
     request: (endpoint, payload) => ipcRenderer.invoke('uta:ai:request', endpoint, payload),
   },
+  updates: {
+    status: () => ipcRenderer.invoke('uta:update:status'),
+    check: () => ipcRenderer.invoke('uta:update:check'),
+    download: () => ipcRenderer.invoke('uta:update:download'),
+    install: () => ipcRenderer.invoke('uta:update:install'),
+    onStatusChanged: listener => {
+      const handler = (_event, status) => listener(status)
+      ipcRenderer.on('uta:update:status-changed', handler)
+      return () => ipcRenderer.removeListener('uta:update:status-changed', handler)
+    },
+  },
 })

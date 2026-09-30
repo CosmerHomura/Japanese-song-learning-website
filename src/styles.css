@@ -492,9 +492,16 @@ body .library-song-card:hover { transform:translateY(-6px) scale(1.012); box-sha
 .settings-tabs button { padding:10px 16px; border-radius:14px; border:1px solid #c8d2c9; background:#f7f5ed; color:#34483c; font:inherit; cursor:pointer; }
 .settings-tabs button[aria-pressed="true"] { background:#344f43; color:white; border-color:#344f43; }
 .settings-refresh-status { display:flex; align-items:center; gap:8px; font-size:var(--ui-font-size); color:#54685d; }
-.ai-settings-dialog:not([data-settings-tab="appearance"]) > .settings-section { display:none; }
+.ai-settings-dialog:not([data-settings-tab="appearance"]) > .settings-section:not(.update-settings) { display:none; }
+.ai-settings-dialog:not([data-settings-tab="updates"]) > .update-settings { display:none; }
 .ai-settings-dialog:not([data-settings-tab="ai"]) .ai-settings-fields > .settings-section:first-child { display:none; }
 .ai-settings-dialog:not([data-settings-tab="dictionary"]) .ai-settings-fields > .settings-section:nth-child(2) { display:none; }
+.update-available-button { border:1px solid #bd9250; border-radius:99px; background:#fff4dc; color:#68471f; padding:6px 11px; font:inherit; cursor:pointer; }
+.update-settings { margin-top:20px; }
+.update-status { margin:0; color:#344f43; font-size:var(--ui-font-size); }
+.update-progress { height:9px; overflow:hidden; border-radius:99px; background:#e3e8e0; }
+.update-progress span { display:block; height:100%; border-radius:inherit; background:#416d59; transition:width .25s ease; }
+.update-settings .settings-dictionary-actions a { display:inline-flex; align-items:center; padding:7px 9px; color:#355247; text-decoration:none; border:1px solid #47665a; border-radius:10px; font-size:var(--ui-font-size); }
 .phrase-correction-editor button,.restore-phrase-button { min-height:40px; border:0; padding:10px; color:#fff; background:#416d59; border-radius:10px; }
 .motion-demo { position:relative; height:50px; overflow:hidden; border-radius:12px; background:#e6eee3; }
 .motion-demo span { display:block; width:58px; padding:10px; color:#fff; background:#416d59; border-radius:10px; animation:motion-preview 1000ms ease-in-out both; }

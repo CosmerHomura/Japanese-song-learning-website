@@ -6,7 +6,7 @@
 
 - Electron 复用现有 React 页面，负责窗口、单实例和进程生命周期。
 - PyInstaller 把 FastAPI、SudachiPy、Sudachi 核心词典和 Vite 产物打成独立 sidecar；最终用户不需要 Python 环境。
-- electron-builder 生成 NSIS 安装包，已接入统一图标；代码签名和发布流水线仍待正式发行前配置。
+- electron-builder 生成 NSIS 安装包，已接入统一图标、桌面快捷方式和 GitHub Release 更新元数据；代码签名和发布流水线仍待配置。
 - 生产版由 FastAPI 在 `127.0.0.1:14731` 同源提供页面和 API，避免给本地 API 放开宽泛 CORS，也让 IndexedDB 使用稳定 origin。
 
 ## 为什么首版不选 Tauri
@@ -24,19 +24,17 @@ Tauri 的壳体积更小，但当前项目仍需要分发体积较大的 Python/
 - 首次启动在用户明确同意后才下载 Tomoshi 数据；设置页和应用内浮窗显示进度并允许取消，自动下载支持保留部分文件并重试续传，网络不佳时可从发布页手工下载。设置页也接受 `.db.zst`、`.db`、`.sqlite`、`.sqlite3`，并在安装前校验必需数据表。
 - `.uta-analysis` 只用歌词哈希匹配本地歌曲，不包含歌词正文、音频或 Key；完整 `.uta-backup` 仍只用于个人迁移。
 
-## PR 划分建议
+## 发布与待办
 
-当前 PR 包含 Windows x64 桌面构建、供应商与本机 Key 管理、词典下载、分词校对、学习与复习界面改进，并保持原网页开发流程可用。后续 PR 再分别处理：
+正式 Windows 安装版启动后检查公开 GitHub Release；用户可在设置中手动检查、下载并重启安装。发布时必须将同次构建的 NSIS EXE、blockmap 和 `latest.yml` 一起上传，详见 [开发与构建说明](development.md)。源码改动验证后直接推送 `main`，无需为每一步开 PR。
 
-1. Windows 代码签名。
-2. GitHub Actions 构建、签名和 Release 附件上传。
-3. 自动更新；只有签名和发布渠道稳定后再启用。
-4. macOS/Linux 适配与各平台签名、权限测试。
+正式大规模分发前仍需完成 Windows 代码签名、干净系统上的更新验收，以及可重复的 GitHub Actions 构建和 Release 上传；macOS/Linux 适配另行处理。
 
 ## 验收清单
 
 - `npm run desktop:dev` 能打开桌面窗口，注音 API 正常。
 - `npm run desktop:make` 生成 `out/UTA-Setup-<版本>.exe`。
+- 安装版创建桌面快捷方式；发布更高版本及配套 `latest.yml` 后，旧安装版能发现更新、下载并在确认重启后安装。
 - 在未安装 Node.js/Python 的干净 Windows 用户环境中可安装、启动和退出。
 - 导入歌曲、重启应用后 IndexedDB 数据仍存在。
 - 关闭窗口后 `uta-backend.exe` 不残留。

@@ -136,6 +136,8 @@ export default function App() {
   const [backupError, setBackupError] = useState('')
   const [dictionaryStatus, setDictionaryStatus] = useState(null)
   const [dictionaryPanelOpen, setDictionaryPanelOpen] = useState(false)
+  const [updateStatus, setUpdateStatus] = useState(null)
+  const announcedUpdateVersion = useRef('')
   const [aiSettingsOpen, setAiSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState('ai')
   const [modelsRefreshing, setModelsRefreshing] = useState(false)
@@ -252,6 +254,19 @@ export default function App() {
     const timer = window.setInterval(refresh, 700)
     return () => { disposed = true; window.clearInterval(timer); unsubscribe?.() }
   }, [])
+  useEffect(() => {
+    if (!window.utaDesktop?.updates) return undefined
+    let disposed = false
+    const update = status => { if (!disposed && status) setUpdateStatus(status) }
+    const unsubscribe = window.utaDesktop.updates.onStatusChanged(update)
+    window.utaDesktop.updates.status().then(update).catch(() => {})
+    return () => { disposed = true; unsubscribe?.() }
+  }, [])
+  useEffect(() => {
+    if (updateStatus?.phase !== 'available' || !updateStatus.availableVersion || announcedUpdateVersion.current === updateStatus.availableVersion) return
+    announcedUpdateVersion.current = updateStatus.availableVersion
+    setToast(`UTA ${updateStatus.availableVersion} 已发布，可在设置中下载更新。`)
+  }, [updateStatus])
   useEffect(() => {
     let disposed = false
     loadLocalSongs()
@@ -760,6 +775,15 @@ export default function App() {
     }
     catch (error) { setAiSettingsError(error instanceof Error ? error.message : '无法读取 AI 设置。') }
     finally { setAiSettingsBusy('') }
+  }
+
+  async function runUpdateAction(action) {
+    try {
+      const status = await window.utaDesktop.updates[action]()
+      if (status) setUpdateStatus(status)
+    } catch (error) {
+      setUpdateStatus(previous => ({ ...previous, phase: 'error', message: error instanceof Error ? error.message : '更新操作失败。' }))
+    }
   }
 
   async function refreshAiModels(settingsOverride = aiSettings, quiet = false) {
@@ -1371,7 +1395,7 @@ export default function App() {
     <header className="topbar">
       <button className="brand" type="button" onClick={() => showLibraryPage()} aria-label="返回歌曲库首页" title="返回歌曲库"><img className="brand-icon" src={utaAppIcon} alt="" /><span>UTA<span className="brand-dot">.</span></span></button>
       <nav className="main-nav" aria-label="主导航"><button className={activePage === 'library' ? 'active' : ''} aria-current={activePage === 'library' ? 'page' : undefined} type="button" onClick={() => showLibraryPage()}>歌曲库</button><button className={activePage === 'lesson' ? 'active' : ''} aria-current={activePage === 'lesson' ? 'page' : undefined} type="button" onClick={showLessonPage}>歌曲学习</button><button className={activePage === 'review' ? 'active' : ''} aria-current={activePage === 'review' ? 'page' : undefined} type="button" onClick={showReviewQueue}>复习</button></nav>
-      <div className="top-actions"><button className="icon-button" type="button" onClick={() => setGuideOpen(true)} aria-label="打开使用引导" title="使用引导"><CircleHelp size={19} /></button><button className="icon-button" type="button" onClick={focusLibrarySearch} aria-label="搜索歌曲"><Search size={20} /></button><button className="avatar" type="button" onClick={openAiSettings} aria-label="应用设置" title="应用设置"><Settings2 size={15} /></button></div>
+      <div className="top-actions"><button className="icon-button" type="button" onClick={() => setGuideOpen(true)} aria-label="打开使用引导" title="使用引导"><CircleHelp size={19} /></button><button className="icon-button" type="button" onClick={focusLibrarySearch} aria-label="搜索歌曲"><Search size={20} /></button>{['available', 'downloading', 'downloaded'].includes(updateStatus?.phase) && <button className="update-available-button" type="button" onClick={() => { setSettingsTab('updates'); void openAiSettings() }}>{updateStatus.phase === 'downloaded' ? '重启更新' : '发现新版本'}</button>}<button className="avatar" type="button" onClick={openAiSettings} aria-label="应用设置" title="应用设置"><Settings2 size={15} /></button></div>
     </header>
 
     {guideOpen && <section className="quick-start-guide" aria-labelledby="quick-start-title">
@@ -1593,8 +1617,8 @@ export default function App() {
     </aside>}
 
     {aiSettingsOpen && <SettingsDialog
-      state={{ settingsTab, modelsRefreshing, readingPreferences, aiSettingsBusy, systemReducedMotion, motionPreview, aiSettings, aiModels, showAllModels, modelSearch, dictionaryStatus, aiSettingsError }}
-      actions={{ close: () => setAiSettingsOpen(false), setSettingsTab, setReadingPreferences, setMotionPreview, selectAiProvider, setAiSettings, selectSavedKey, deleteSavedKey, selectDiscoveredModel, refreshAiModels, setShowAllModels, setModelSearch, runDictionaryAction, saveAiConfiguration }}
+      state={{ settingsTab, modelsRefreshing, readingPreferences, aiSettingsBusy, systemReducedMotion, motionPreview, aiSettings, aiModels, showAllModels, modelSearch, dictionaryStatus, aiSettingsError, updateStatus }}
+      actions={{ close: () => setAiSettingsOpen(false), setSettingsTab, setReadingPreferences, setMotionPreview, selectAiProvider, setAiSettings, selectSavedKey, deleteSavedKey, selectDiscoveredModel, refreshAiModels, setShowAllModels, setModelSearch, runDictionaryAction, saveAiConfiguration, runUpdateAction }}
     />}
     <div className={`toast ${toast ? 'visible' : ''}`} role="status">{toast}</div>
   </>

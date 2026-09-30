@@ -1,6 +1,6 @@
 {
   "name": "uta-japanese-song-learning",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "通过逐句跟唱学习日语歌词的桌面与网页应用",
   "author": "CosmerHomura",
   "private": true,
@@ -20,6 +20,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "lucide-react": "^0.468.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"

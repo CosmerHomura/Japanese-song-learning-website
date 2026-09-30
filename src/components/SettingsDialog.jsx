@@ -1,22 +1,29 @@
-import { BookOpenCheck, CircleAlert, Download, LoaderCircle, Save, Sparkles, Upload, X, Bot } from 'lucide-react'
+import { BookOpenCheck, CircleAlert, Download, LoaderCircle, Save, Sparkles, Upload, X, Bot, RefreshCw } from 'lucide-react'
 import { modelChoices, modelLabel } from '../lib/modelChoices.mjs'
 import { DEFAULT_READING_PREFERENCES } from '../lib/readingPreferences.mjs'
 
 export default function SettingsDialog({ state, actions }) {
   const { settingsTab, modelsRefreshing, readingPreferences, aiSettingsBusy, systemReducedMotion, motionPreview,
-    aiSettings, aiModels, showAllModels, modelSearch, dictionaryStatus, aiSettingsError } = state
+    aiSettings, aiModels, showAllModels, modelSearch, dictionaryStatus, aiSettingsError, updateStatus } = state
   const { close, setSettingsTab, setReadingPreferences, setMotionPreview, selectAiProvider, setAiSettings,
     selectSavedKey, deleteSavedKey, selectDiscoveredModel, refreshAiModels, setShowAllModels, setModelSearch,
-    runDictionaryAction, saveAiConfiguration } = actions
+    runDictionaryAction, saveAiConfiguration, runUpdateAction } = actions
   return <div className="backup-backdrop" role="presentation" onClick={close}>
     <form className="backup-dialog ai-settings-dialog" data-settings-tab={settingsTab} onSubmit={saveAiConfiguration} onClick={event => event.stopPropagation()}>
       <button className="backup-close" type="button" onClick={close} aria-label="关闭设置"><X size={18} /></button>
       <p className="eyebrow">APPLICATION SETTINGS</p><h2>设置</h2>
-      <nav className="settings-tabs" aria-label="设置分类">{[['ai', 'AI 与模型'], ['dictionary', '本地词典'], ['appearance', '阅读与动效']].map(([id, label]) => <button key={id} type="button" aria-pressed={settingsTab === id} onClick={() => setSettingsTab(id)}>{label}</button>)}</nav>
+      <nav className="settings-tabs" aria-label="设置分类">{[['ai', 'AI 与模型'], ['dictionary', '本地词典'], ['appearance', '阅读与动效'], ['updates', '关于与更新']].map(([id, label]) => <button key={id} type="button" aria-pressed={settingsTab === id} onClick={() => setSettingsTab(id)}>{label}</button>)}</nav>
       {modelsRefreshing && <p className="settings-refresh-status" role="status"><LoaderCircle className="spin" size={14} /> 模型目录正在后台刷新，可随时关闭设置。</p>}
       <section className="settings-section reading-settings"><div className="settings-section-heading"><b>阅读与字号</b><button type="button" onClick={() => setReadingPreferences(DEFAULT_READING_PREFERENCES)}>恢复默认</button></div><label>界面字号 · {readingPreferences.interfaceSize}px<input type="range" min="14" max="22" step="1" value={readingPreferences.interfaceSize} onChange={event => setReadingPreferences({ ...readingPreferences, interfaceSize: Number(event.target.value) })} /></label><label>歌词字号 · {readingPreferences.lyricSize}px<input type="range" min="20" max="40" step="1" value={readingPreferences.lyricSize} onChange={event => setReadingPreferences({ ...readingPreferences, lyricSize: Number(event.target.value) })} /></label><p>即时预览并自动保存在本机，不受下面 AI 设置保存按钮影响。</p></section>
       {aiSettingsBusy === 'load' && <p><LoaderCircle className="spin" size={14} /> 正在读取本机设置…</p>}
       <section className="settings-section"><label>动态效果<select value={readingPreferences.motion} onChange={event => setReadingPreferences({ ...readingPreferences, motion: event.target.value })}><option value="on">开启</option><option value="system">跟随系统</option><option value="off">关闭</option></select></label><p className="field-help">系统减少动态效果：{systemReducedMotion ? '已开启' : '未开启'}。选择“开启”会使用应用动画，不跟随系统禁用。</p><button type="button" onClick={() => setMotionPreview(value => value + 1)}>播放动效预览</button><div className="motion-demo" aria-label="动画预览"><span key={motionPreview}>UTA</span></div></section>
+      <section className="settings-section update-settings" aria-label="应用更新"><div className="settings-section-heading"><div><RefreshCw size={17} /><b>版本与更新</b></div><span>当前版本 {updateStatus?.currentVersion || '读取中'}</span></div>
+        <p className="update-status" role="status">{updateStatus?.phase === 'checking' ? '正在检查新版本…' : updateStatus?.phase === 'available' ? `发现新版本 ${updateStatus.availableVersion}` : updateStatus?.phase === 'downloading' ? `正在下载 ${updateStatus.availableVersion}：${updateStatus.progress}%` : updateStatus?.phase === 'downloaded' ? `版本 ${updateStatus.availableVersion} 已下载，重启后安装。` : updateStatus?.phase === 'current' ? '当前已是最新发布版本。' : updateStatus?.phase === 'error' ? '检查或下载未完成，可稍后重试。' : updateStatus?.phase === 'unsupported' ? updateStatus.message : '启动后会自动检查 GitHub Release，也可手动检查。'}</p>
+        {updateStatus?.phase === 'downloading' && <div className="update-progress" role="progressbar" aria-label="更新下载进度" aria-valuenow={updateStatus.progress} aria-valuemin="0" aria-valuemax="100"><span style={{ width: `${updateStatus.progress}%` }} /></div>}
+        {updateStatus?.phase === 'error' && <p className="settings-inline-error"><CircleAlert size={15} /> {updateStatus.message}</p>}
+        <div className="settings-dictionary-actions"><button type="button" onClick={() => runUpdateAction('check')} disabled={!updateStatus || ['checking', 'downloading', 'downloaded', 'unsupported'].includes(updateStatus.phase)}>检查更新</button>{updateStatus?.phase === 'available' && <button type="button" onClick={() => runUpdateAction('download')}>下载新版本</button>}{updateStatus?.phase === 'downloaded' && <button type="button" onClick={() => runUpdateAction('install')}>重启并安装</button>}<a href="https://github.com/CosmerHomura/Japanese-song-learning-website/releases" target="_blank" rel="noreferrer">查看发布页</a></div>
+        <p className="field-help">Windows 桌面版会检查更新；请用正式安装版完成升级。更新会沿用本机数据目录，重要记录仍建议先导出备份。</p>
+      </section>
       {aiSettings && <div className="ai-settings-fields">
         <section className="settings-section"><div className="settings-section-heading"><div><Bot size={16} /><b>AI 供应商与模型</b></div><span>选厂家即可浏览模型</span></div>
           <label><span className="settings-step-label">1 · 选择供应商</span><select value={aiSettings.provider} onChange={event => selectAiProvider(event.target.value)}>{(aiSettings.providers || []).map(provider => <option key={provider.id} value={provider.id}>{provider.label}</option>)}</select></label>
