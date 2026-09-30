@@ -2,6 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { BookOpenCheck, Bot, Check, ChevronDown, ChevronRight, Circle, CircleAlert, CircleHelp, Download, Heart, LoaderCircle, MousePointer2, Pause, Pencil, Play, Plus, Save, Search, Settings2, Sparkles, Trash2, Upload, Volume2, WandSparkles, X } from 'lucide-react'
 import AnnotatedLine from './components/AnnotatedLine'
 import SegmentationEditor from './components/SegmentationEditor'
+import SettingsDialog from './components/SettingsDialog'
+import SentenceAnalysis from './components/SentenceAnalysis'
+import { formatLrcTimestamp, parseLrcTimestamp } from './lib/lyricTime.mjs'
 import { reconcileModelCatalog } from './lib/modelRefresh.mjs'
 import { importedSongs } from './data/songs.generated'
 import { demoSongs } from './data/demoSongs'
@@ -11,22 +14,17 @@ import utaAppIcon from './assets/uta-app-icon.png'
 import { annotateSongLines, explainSelectionWithAi, explainSentenceBatchWithAi, reviewSongWithAi, searchSongArtwork } from './lib/annotationApi'
 import { createAndStoreLocalSong, deleteLocalSong, loadLocalSongs, parseLrcFile, replaceLocalSongs, updateLocalSongMetadata } from './lib/localSongStore'
 import { BACKUP_STORAGE_KEYS, createLearningBackup, inspectLearningBackup, songsFromLearningBackup } from './lib/learningBackup'
+import { loadLearningState, saveLearningState, learningStateFromBackup, LEARNING_STATE_KEY } from './lib/learningState.mjs'
 import { createSongAnalysisFile, importSongAnalysisFile } from './lib/analysisShare'
 import { correctionKey, hasKanji } from './lib/ruby'
 import { isSongHeadingLine, withoutSongHeadingLines } from './lib/songMetadata'
-import { modelChoices, modelLabel } from './lib/modelChoices.mjs'
 import LearningProgress from './components/LearningProgress'
 import { songProgress, libraryProgress } from './lib/learningProgress.mjs'
 import { createPracticeSession } from './lib/practiceSession.mjs'
 import { dictionaryPanelVisible } from './lib/dictionaryPanel.mjs'
-import { normalizeReadingPreferences, DEFAULT_READING_PREFERENCES } from './lib/readingPreferences.mjs'
+import { normalizeReadingPreferences } from './lib/readingPreferences.mjs'
 import { mergeSelectedTokens, restoreMergedToken } from './lib/phraseCorrection.mjs'
 
-const PROGRESS_KEY = BACKUP_STORAGE_KEYS.progress
-const ANNOTATION_KEY = BACKUP_STORAGE_KEYS.annotations
-const AI_REVIEW_KEY = BACKUP_STORAGE_KEYS.aiReviews
-const SENTENCE_EXPLANATION_KEY = BACKUP_STORAGE_KEYS.sentenceExplanations
-const AI_USAGE_KEY = 'uta-ai-usage-v1'
 const GUIDE_DISMISSED_KEY = 'uta-quick-start-dismissed-v1'
 const LINE_PLAYBACK_LEAD_IN_SECONDS = 0.5
 const SENTENCE_BATCH_SIZE = 8
@@ -69,33 +67,10 @@ function hasCachedSentenceExplanation(cache, line) {
   return entry?.text === line.text && typeof entry.explanation?.meaning === 'string' && Boolean(entry.explanation.meaning.trim())
 }
 
-function SentenceAnalysis({ explanation, id }) {
-  return <section className="sentence-inline-analysis" id={id} aria-label="整句解析" onClick={(event) => event.stopPropagation()}>
-    <h3><Sparkles size={14} /> 整句解析</h3>
-    <div className="sentence-analysis-section"><h4>整句意思</h4><p>{explanation.meaning}</p></div>
-    {explanation.vocabulary?.length > 0 && <div className="sentence-analysis-section"><h4>关键表达</h4><dl>{explanation.vocabulary.map((item, index) => <div key={`${item.surface}-${index}`}><dt lang="ja">{item.surface}</dt><dd>{item.meaning}</dd></div>)}</dl></div>}
-    {explanation.grammar?.length > 0 && <div className="sentence-analysis-section"><h4>语法与语境</h4><ul>{explanation.grammar.map((point, index) => <li key={`${point}-${index}`}>{point}</li>)}</ul></div>}
-    {explanation.pronunciation_tip && <div className="sentence-analysis-section"><h4>发音提示</h4><p>{explanation.pronunciation_tip}</p></div>}
-    <p className="sentence-analysis-footnote">AI 解析仅供学习参考；想了解具体词句，仍可在歌词中选中后单独提问。</p>
-  </section>
-}
-
-function formatLrcTimestamp(seconds) {
-  const milliseconds = Math.round(seconds * 1000)
-  const minutes = Math.floor(milliseconds / 60000)
-  const remainder = milliseconds % 60000
-  return `${String(minutes).padStart(2, '0')}:${String(Math.floor(remainder / 1000)).padStart(2, '0')}.${String(remainder % 1000).padStart(3, '0')}`
-}
-
-function parseLrcTimestamp(value) {
-  const match = String(value).trim().match(/^\[?(\d{1,3}):([0-5]\d(?:\.\d{1,3})?)\]?$/)
-  return match ? Number(match[1]) * 60 + Number(match[2]) : null
-}
 
 export default function App() {
-  const savedProgress = useMemo(() => loadLocal(PROGRESS_KEY, {
-    learnedBySong: {}, reviewItems: [], favoriteSongIds: [], corrections: {}, meaningOverrides: {},
-  }), [])
+  const savedLearning = useMemo(() => loadLearningState(localStorage), [])
+  const savedProgress = savedLearning.progress
   const [activeSongId, setActiveSongId] = useState(initialSong().id)
   const [activePage, setActivePage] = useState('library')
   const [activeLineId, setActiveLineId] = useState(0)
@@ -114,10 +89,10 @@ export default function App() {
   const [playbackRate, setPlaybackRate] = useState(savedProgress.playbackRate || 1)
   const [localSongs, setLocalSongs] = useState([])
   const [localAudioUrls, setLocalAudioUrls] = useState({})
-  const [annotationsBySong, setAnnotationsBySong] = useState(() => loadLocal(ANNOTATION_KEY, {}))
-  const [aiReviews, setAiReviews] = useState(() => loadLocal(AI_REVIEW_KEY, {}))
-  const [sentenceExplanationsBySong, setSentenceExplanationsBySong] = useState(() => loadLocal(SENTENCE_EXPLANATION_KEY, {}))
-  const [aiUsageBySong, setAiUsageBySong] = useState(() => loadLocal(AI_USAGE_KEY, {}))
+  const [annotationsBySong, setAnnotationsBySong] = useState(savedLearning.annotations)
+  const [aiReviews, setAiReviews] = useState(savedLearning.aiReviews)
+  const [sentenceExplanationsBySong, setSentenceExplanationsBySong] = useState(savedLearning.sentenceExplanations)
+  const [aiUsageBySong, setAiUsageBySong] = useState(savedLearning.aiUsage)
   const [sentenceExplanationOpen, setSentenceExplanationOpen] = useState(null)
   const [sentenceExplanationJob, setSentenceExplanationJob] = useState(null)
   const [sentenceExplanationError, setSentenceExplanationError] = useState(null)
@@ -247,13 +222,11 @@ export default function App() {
   }, {})).map(([currency, cost]) => `${currency === 'CNY' ? '¥' : currency} ${cost.toFixed(6)}`).join(' + ') || '¥ 0.000000'
 
   useEffect(() => {
-    localStorage.setItem(PROGRESS_KEY, JSON.stringify({ learnedBySong, reviewItems, favoriteSongIds, corrections, meaningOverrides, playbackRate }))
-  }, [learnedBySong, reviewItems, favoriteSongIds, corrections, meaningOverrides, playbackRate])
-
-  useEffect(() => { localStorage.setItem(ANNOTATION_KEY, JSON.stringify(annotationsBySong)) }, [annotationsBySong])
-  useEffect(() => { localStorage.setItem(AI_REVIEW_KEY, JSON.stringify(aiReviews)) }, [aiReviews])
-  useEffect(() => { localStorage.setItem(SENTENCE_EXPLANATION_KEY, JSON.stringify(sentenceExplanationsBySong)) }, [sentenceExplanationsBySong])
-  useEffect(() => { localStorage.setItem(AI_USAGE_KEY, JSON.stringify(aiUsageBySong)) }, [aiUsageBySong])
+    saveLearningState(localStorage, {
+      progress: { learnedBySong, reviewItems, favoriteSongIds, corrections, meaningOverrides, playbackRate },
+      annotations: annotationsBySong, aiReviews, sentenceExplanations: sentenceExplanationsBySong, aiUsage: aiUsageBySong,
+    })
+  }, [learnedBySong, reviewItems, favoriteSongIds, corrections, meaningOverrides, playbackRate, annotationsBySong, aiReviews, sentenceExplanationsBySong, aiUsageBySong])
   useEffect(() => {
     if (!guideOpen || !window.utaDesktop?.ai) return undefined
     let disposed = false
@@ -917,15 +890,12 @@ export default function App() {
     try {
       const { manifest } = backupPreview
       const restoredStorage = {
-        [PROGRESS_KEY]: JSON.stringify(manifest.progress),
-        [ANNOTATION_KEY]: JSON.stringify(manifest.annotations),
-        [AI_REVIEW_KEY]: JSON.stringify(manifest.aiReviews),
-        [SENTENCE_EXPLANATION_KEY]: JSON.stringify(manifest.sentenceExplanations),
-        [AI_USAGE_KEY]: JSON.stringify(manifest.aiUsage || {}),
+        [LEARNING_STATE_KEY]: JSON.stringify(learningStateFromBackup(manifest)),
       }
       previousSongs = await loadLocalSongs()
       await replaceLocalSongs(songsFromLearningBackup(backupPreview))
       try {
+        Object.values(BACKUP_STORAGE_KEYS).forEach((key) => localStorage.removeItem(key))
         Object.entries(restoredStorage).forEach(([key, value]) => localStorage.setItem(key, value))
       } catch (error) {
         let rollbackFailed = false
@@ -1622,38 +1592,10 @@ export default function App() {
       <div className="dictionary-panel-actions">{['downloading', 'installing'].includes(dictionaryStatus.phase) ? <button type="button" className="danger" onClick={() => runDictionaryAction('cancel')}>取消下载</button> : <><button type="button" onClick={() => runDictionaryAction('download')}>{dictionaryStatus.phase === 'cancelled' ? '继续下载' : '下载最新版'}</button><button type="button" onClick={() => runDictionaryAction('chooseLocal')}>选择本地文件</button><button type="button" onClick={() => window.utaDesktop.dictionary.openReleases()}>打开发布页</button></>}</div>
     </aside>}
 
-    {aiSettingsOpen && <div className="backup-backdrop" role="presentation" onClick={() => setAiSettingsOpen(false)}><form className="backup-dialog ai-settings-dialog" data-settings-tab={settingsTab} onSubmit={saveAiConfiguration} onClick={(event) => event.stopPropagation()}>
-      <button className="backup-close" type="button" onClick={() => setAiSettingsOpen(false)} aria-label="关闭设置"><X size={18} /></button>
-      <p className="eyebrow">APPLICATION SETTINGS</p><h2>设置</h2>
-      <nav className="settings-tabs" aria-label="设置分类">{[['ai', 'AI 与模型'], ['dictionary', '本地词典'], ['appearance', '阅读与动效']].map(([id, label]) => <button key={id} type="button" aria-pressed={settingsTab === id} onClick={() => setSettingsTab(id)}>{label}</button>)}</nav>
-      {modelsRefreshing && <p className="settings-refresh-status" role="status"><LoaderCircle className="spin" size={14} /> 模型目录正在后台刷新，可随时关闭设置。</p>}
-      <section className="settings-section reading-settings"><div className="settings-section-heading"><b>阅读与字号</b><button type="button" onClick={() => setReadingPreferences(DEFAULT_READING_PREFERENCES)}>恢复默认</button></div><label>界面字号 · {readingPreferences.interfaceSize}px<input type="range" min="14" max="22" step="1" value={readingPreferences.interfaceSize} onChange={(event) => setReadingPreferences({ ...readingPreferences, interfaceSize: Number(event.target.value) })} /></label><label>歌词字号 · {readingPreferences.lyricSize}px<input type="range" min="20" max="40" step="1" value={readingPreferences.lyricSize} onChange={(event) => setReadingPreferences({ ...readingPreferences, lyricSize: Number(event.target.value) })} /></label><p>即时预览并自动保存在本机，不受下面 AI 设置保存按钮影响。</p></section>
-      {aiSettingsBusy === 'load' && <p><LoaderCircle className="spin" size={14} /> 正在读取本机设置…</p>}
-      <section className="settings-section"><label>动态效果<select value={readingPreferences.motion} onChange={(event) => setReadingPreferences({ ...readingPreferences, motion: event.target.value })}><option value="on">开启</option><option value="system">跟随系统</option><option value="off">关闭</option></select></label><p className="field-help">系统减少动态效果：{systemReducedMotion ? '已开启' : '未开启'}。选择“开启”会使用应用动画，不跟随系统禁用。</p><button type="button" onClick={() => setMotionPreview((value) => value + 1)}>播放动效预览</button><div className="motion-demo" aria-label="动画预览"><span key={motionPreview}>UTA</span></div></section>
-      {aiSettings && <div className="ai-settings-fields">
-        <section className="settings-section"><div className="settings-section-heading"><div><Bot size={16} /><b>AI 供应商与模型</b></div><span>选厂家即可浏览模型</span></div>
-          <label><span className="settings-step-label">1 · 选择供应商</span><select value={aiSettings.provider} onChange={(event) => selectAiProvider(event.target.value)}>{(aiSettings.providers || []).map((provider) => <option key={provider.id} value={provider.id}>{provider.label}</option>)}</select></label>
-          {aiSettings.provider === 'custom' && <label><span className="settings-step-label">自定义接口地址</span><input type="url" value={aiSettings.base_url} onChange={(event) => setAiSettings({ ...aiSettings, base_url: event.target.value })} /><small className="field-help">仅自定义 OpenAI 兼容服务需要填写，普通厂家地址由应用维护。</small></label>}
-          <section className="key-management">{(aiSettings.keys || []).some((key) => key.provider === aiSettings.provider) && <><label>已保存的 Key<select value={aiSettings.selected_key_id || ''} onChange={(event) => selectSavedKey(event.target.value)}><option value="">添加新 Key / 暂不使用</option>{(aiSettings.keys || []).filter((key) => key.provider === aiSettings.provider).map((key) => <option key={key.id} value={key.id}>{key.name} · ••••{key.last_four}</option>)}</select></label>{aiSettings.selected_key_id && <button type="button" onClick={deleteSavedKey} disabled={Boolean(aiSettingsBusy)}>删除此 Key</button>}</>}<label>{aiSettings.selected_key_id ? '添加其他 Key（可选）' : 'API Key'}<input type="password" value={aiSettings.api_key || ''} onChange={(event) => setAiSettings({ ...aiSettings, api_key: event.target.value, key_name: '' })} placeholder={aiSettings.selected_key_id ? '留空继续使用已保存的 Key' : '粘贴 Key 即可，无需命名'} autoComplete="off" /></label><small className="field-help">保存在本机并加密；不填 Key 也可以浏览模型。</small></section>
-          <div className="ai-model-row"><label><span className="settings-step-label">模型</span><select value={aiSettings.model} onChange={(event) => selectDiscoveredModel(event.target.value)}>{!modelChoices(aiModels, aiSettings.model, showAllModels, modelSearch).some((model) => model.id === aiSettings.model) && <option value={aiSettings.model}>{modelLabel(aiModels.find((model) => model.id === aiSettings.model) || { id: aiSettings.model || '正在读取模型…' })}</option>}{modelChoices(aiModels, aiSettings.model, showAllModels, modelSearch).map((model) => <option key={model.id} value={model.id}>{modelLabel(model)}</option>)}</select></label><button type="button" onClick={() => refreshAiModels()} disabled={modelsRefreshing || Boolean(aiSettingsBusy)}>{modelsRefreshing ? <LoaderCircle className="spin" size={13} /> : <Sparkles size={13} />} 刷新</button></div>
-          <div className="model-list-options"><button type="button" onClick={() => { setShowAllModels(!showAllModels); setModelSearch('') }}>{showAllModels ? '收起全部模型' : `全部模型（${aiModels.length}）`}</button>{showAllModels && <input type="search" aria-label="搜索模型" placeholder="搜索名称或接口 ID" value={modelSearch} onChange={(event) => setModelSearch(event.target.value)} />}</div>
-          <details className="model-technical-details"><summary>价格与连接详情</summary><p className="ai-settings-note">接口 ID：{aiSettings.model} · {aiSettings.base_url}</p>
-          <p className="ai-settings-note">{aiModels[0]?.model_source || '公开模型目录'} · {aiModels[0]?.account_verified ? '已核对账号权限' : '公开目录供浏览，实际可用性需用 Key 校验'}。最新读取：{aiModels[0]?.catalog_checked_at ? new Date(aiModels[0].catalog_checked_at).toLocaleString() : '尚未读取'}。</p>
-          <dl className="ai-price-summary"><div><dt>输入 / 百万 token</dt><dd>¥ {aiSettings.pricing_source === '供应商未提供' ? '暂未获取' : Number(aiSettings.input_price || 0).toFixed(4)}</dd></div><div><dt>缓存输入 / 百万 token</dt><dd>¥ {Number(aiSettings.cached_input_price || 0).toFixed(4)}</dd></div><div><dt>输出 / 百万 token</dt><dd>¥ {aiSettings.pricing_source === '供应商未提供' ? '暂未获取' : Number(aiSettings.output_price || 0).toFixed(4)}</dd></div><div><dt>价格来源</dt><dd>{aiSettings.pricing_source || '供应商未提供'}</dd></div></dl>
-          <p className="ai-settings-note">人民币费用为本机估算，便于比较每首歌的成本；最终扣费以供应商账单为准。</p>
-          </details>
-        </section>
-        <section className="settings-section"><div className="settings-section-heading"><div><BookOpenCheck size={16} /><b>本地词典</b></div><span>{dictionaryStatus?.installed ? '已安装' : '未安装（可选）'}</span></div>
-          <p className="ai-settings-note">这是可选增强项：不安装仍可用 SudachiPy 自动注音；安装后可显示更多日中词义。推荐自动下载 Tomoshi Dictionary Open Data Layer，网络不稳定时也可打开发布页手动下载。</p>
-          <p className="dictionary-format-hint"><b>上传格式：</b>.db.zst、.db、.sqlite、.sqlite3；SQLite 必须包含 entries、forms、zh_defs 表。</p>
-          {dictionaryStatus?.error && <p className="settings-inline-error"><CircleAlert size={13} /> {dictionaryStatus.error}</p>}
-          {dictionaryStatus && ['downloading', 'installing', 'cancelling'].includes(dictionaryStatus.phase) && <><div className="dictionary-progress"><span style={{ width: dictionaryStatus.total_bytes ? `${Math.min(100, dictionaryStatus.downloaded_bytes / dictionaryStatus.total_bytes * 100)}%` : dictionaryStatus.phase === 'installing' ? '100%' : '18%' }} /></div><div className="dictionary-progress-meta"><span>{dictionaryStatus.phase === 'installing' ? '正在校验并安装' : '正在下载推荐词典'}</span>{dictionaryStatus.total_bytes && <b>{Math.round(dictionaryStatus.downloaded_bytes / dictionaryStatus.total_bytes * 100)}%</b>}</div></>}
-          <div className="settings-dictionary-actions">{dictionaryStatus && ['downloading', 'installing'].includes(dictionaryStatus.phase) ? <button type="button" className="danger" onClick={() => runDictionaryAction('cancel')}>取消下载</button> : <><button type="button" onClick={() => runDictionaryAction('download')}><Download size={12} /> {dictionaryStatus?.phase === 'cancelled' ? '继续下载' : '下载推荐词典'}</button><button type="button" onClick={() => runDictionaryAction('chooseLocal')}><Upload size={12} /> 上传本地词典</button><button type="button" onClick={() => window.utaDesktop?.dictionary?.openReleases()}>打开发布页</button></>}</div>
-        </section>
-      </div>}
-      {aiSettingsError && <p className="library-backup-error" role="alert"><CircleAlert size={14} /> {aiSettingsError}</p>}
-      <div className="backup-dialog-actions"><button type="button" onClick={() => setAiSettingsOpen(false)}>关闭</button>{settingsTab === 'ai' && <button type="submit" disabled={!aiSettings || Boolean(aiSettingsBusy)}>{aiSettingsBusy === 'save' ? <LoaderCircle className="spin" size={14} /> : <Save size={14} />} 保存 AI 设置</button>}</div>
-    </form></div>}
+    {aiSettingsOpen && <SettingsDialog
+      state={{ settingsTab, modelsRefreshing, readingPreferences, aiSettingsBusy, systemReducedMotion, motionPreview, aiSettings, aiModels, showAllModels, modelSearch, dictionaryStatus, aiSettingsError }}
+      actions={{ close: () => setAiSettingsOpen(false), setSettingsTab, setReadingPreferences, setMotionPreview, selectAiProvider, setAiSettings, selectSavedKey, deleteSavedKey, selectDiscoveredModel, refreshAiModels, setShowAllModels, setModelSearch, runDictionaryAction, saveAiConfiguration }}
+    />}
     <div className={`toast ${toast ? 'visible' : ''}`} role="status">{toast}</div>
   </>
 }

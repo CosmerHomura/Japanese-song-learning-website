@@ -17,5 +17,6 @@ contextBridge.exposeInMainWorld('utaDesktop', {
     settings: () => ipcRenderer.invoke('uta:ai:settings'),
     models: (settings) => ipcRenderer.invoke('uta:ai:models', settings),
     saveSettings: (settings) => ipcRenderer.invoke('uta:ai:save-settings', settings),
+    request: (endpoint, payload) => ipcRenderer.invoke('uta:ai:request', endpoint, payload),
   },
 })

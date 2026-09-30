@@ -6,6 +6,7 @@ const decoder = new TextDecoder('utf-8', { fatal: true })
 const signatureBytes = encoder.encode(SIGNATURE)
 
 export const BACKUP_STORAGE_KEYS = {
+  snapshot: 'uta-learning-state-v2',
   progress: 'uta-pronunciation-progress-v2',
   annotations: 'uta-auto-annotations-v5',
   aiReviews: 'uta-ai-reviews-v1',

@@ -27,6 +27,9 @@ export async function searchSongArtwork(title, artist = '') {
 }
 
 async function postAi(path, payload) {
+  if (path.startsWith('/api/ai/') && globalThis.window?.utaDesktop?.ai?.request) {
+    return globalThis.window.utaDesktop.ai.request(path, payload)
+  }
   const response = await fetch(`${apiOrigin}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

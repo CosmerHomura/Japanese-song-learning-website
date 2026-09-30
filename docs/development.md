@@ -28,6 +28,8 @@ server/.venv/Scripts/python.exe -m unittest discover -s server/tests
 
 桌面端由 Electron 启动本机 FastAPI sidecar，网页产物由 FastAPI 同源提供；PyInstaller 将 Python 运行时、Sudachi 核心词典和静态页面一起冻结。用户歌曲、词典数据库、API Key、本机模型目录缓存和构建产物都不可提交。密钥由 Windows DPAPI 加密保存在当前用户配置目录；即使这样也不应放进截图、日志或共享解析。
 
+桌面模式下付费 AI 请求经 Electron 受限 IPC 附加当前会话令牌；直接向本地端口请求付费路由会被拒绝。网页开发模式没有桌面会话令牌，仍可使用本机 `.env` 配置。学习记录集中保存在带版本号的本地快照，旧 Local Storage 键与旧版 `.uta-backup` 会自动兼容迁移；歌曲和音频仍由 IndexedDB 保存。
+
 如果在开发环境维护内置歌曲，将 `.lrc` 放入 `geci/`，对应音频放入 `song/`，再运行 `npm.cmd run lyrics:sync`。生成的 `src/data/songs.generated.js`、真实歌曲、音频与封面不进入公开仓库。
 
 网页开发版仍兼容 `server/.env.example` 中的 DeepSeek 配置，但 `.env` 必须留在本机。可选 Tomoshi 词典的许可证和署名要求见 [第三方数据声明](../THIRD_PARTY_DATA_NOTICES.md)。

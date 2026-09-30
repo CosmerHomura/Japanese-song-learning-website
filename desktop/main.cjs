@@ -3,6 +3,7 @@ const { spawn } = require('node:child_process')
 const crypto = require('node:crypto')
 const fs = require('node:fs')
 const path = require('node:path')
+const { assertPaidAiRequest } = require('./aiRequestPolicy.cjs')
 
 app.setName('UTA')
 
@@ -90,7 +91,7 @@ async function createWindow() {
   if (isDevelopment) await waitForVite()
 
   mainWindow = new BrowserWindow({
-    title: 'UTA · 新版验收 2026.09.27 · 分类设置与后台模型刷新',
+    title: 'UTA｜用日语歌学会日语',
     width: 1360,
     height: 900,
     icon: path.join(__dirname, 'assets', 'uta.ico'),
@@ -122,7 +123,7 @@ async function createWindow() {
   })
 
   await mainWindow.loadURL(isDevelopment ? 'http://127.0.0.1:5173' : backendOrigin, { extraHeaders: 'Cache-Control: no-cache\n' })
-  mainWindow.setTitle('UTA · 新版验收 2026.09.27 · 分类设置与后台模型刷新')
+  mainWindow.setTitle('UTA｜用日语歌学会日语')
   mainWindow.on('page-title-updated', (event) => event.preventDefault())
 }
 
@@ -301,6 +302,10 @@ function installDesktopIpc() {
     method: 'PUT',
     body: JSON.stringify(settings),
   }))
+  ipcMain.handle('uta:ai:request', (event, endpoint, payload) => {
+    assertPaidAiRequest(endpoint, event.senderFrame?.url || '', isDevelopment ? 'http://127.0.0.1:5173' : backendOrigin)
+    return dictionaryRequest(endpoint, { method: 'POST', body: JSON.stringify(payload) })
+  })
 }
 
 function stopBackend() {
