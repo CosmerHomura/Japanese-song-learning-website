@@ -32,6 +32,16 @@ test('original and hidden practice modes still hide ruby in both scripts', () =>
   }
 })
 
+test('kana-only words stay selectable like kanji words', () => {
+  const markup = renderToStaticMarkup(createElement(AnnotatedLine, {
+    tokens: [{ index: 0, surface: 'ありがとう', reading: 'ありがとう', is_symbol: false }],
+    corrections: {}, songId: 'test', lineId: 0, mode: 'reading', selectedIndex: 0,
+  }))
+  assert.match(markup, /<button class="lyric-token[^\"]*selected/)
+  assert.match(markup, /aria-label="ありがとう，读音 ありがとう"/)
+  assert.match(markup, />ありがとう<\/button>/)
+})
+
 test('settings offers both options and reflects persisted selection', () => {
   for (const style of ['hiragana', 'romaji']) {
     const markup = renderToStaticMarkup(createElement(SettingsDialog, {

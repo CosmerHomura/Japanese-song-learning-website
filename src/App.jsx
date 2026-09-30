@@ -154,6 +154,7 @@ export default function App() {
   const [guideAiConfigured, setGuideAiConfigured] = useState(false)
   const [toast, setToast] = useState('')
   const dragSelectionRef = useRef(null)
+  const reviewQueueScrollPending = useRef(false)
   const suppressNextTokenClick = useRef(false)
   const audioRef = useRef(null)
   const clipEndRef = useRef(null)
@@ -205,6 +206,7 @@ export default function App() {
     ? `${import.meta.env.BASE_URL}${activeSong.audioFile.split('/').map((part) => encodeURIComponent(part)).join('/')}`
     : ''
   const activeLine = activeSong.lines.find((line) => line.id === activeLineId) || activeSong.lines[0]
+  const hasSelectedLine = activeSong.lines.some((line) => line.id === activeLineId)
   const annotations = useMemo(() => annotationsBySong[activeSong.id]?.filter((annotation) =>
     activeSong.lines.some((line) => annotationMatchesLine(annotation, line))), [annotationsBySong, activeSong])
   const activeAnnotation = annotations?.find((line) => line.id === activeLine.id)
@@ -370,6 +372,22 @@ export default function App() {
   }, [activeSong.id, annotations])
 
   useEffect(() => {
+    const dismissOnBlank = (event) => {
+      if (event.button !== 0 || detailOpen || event.target.closest('.lyric-row, .word-panel, .word-detail, .line-progress-grid, .ai-review-queue, button, a, input, select, textarea, label, summary')) return
+      clearLineSelection()
+    }
+    document.addEventListener('pointerdown', dismissOnBlank)
+    return () => document.removeEventListener('pointerdown', dismissOnBlank)
+  }, [detailOpen])
+
+  useEffect(() => {
+    if (!editingReadings || !reviewQueueScrollPending.current) return undefined
+    reviewQueueScrollPending.current = false
+    const frame = window.requestAnimationFrame(() => focusAiReviewQueue())
+    return () => window.cancelAnimationFrame(frame)
+  }, [editingReadings, activePage, pendingAiSuggestions.length])
+
+  useEffect(() => {
     const firstToken = activeTokens.find((token) => !token.is_symbol && hasKanji(token.surface))
       || activeTokens.find((token) => !token.is_symbol) || activeTokens[0]
     if (firstToken) setSelectedTokenIndex((previous) => activeTokens.some((token) => token.index === previous && !token.is_symbol) ? previous : firstToken.index)
@@ -403,6 +421,29 @@ export default function App() {
   }
 
   function chooseLine(lineId) { setActiveLineId(lineId) }
+
+  function clearLineSelection() {
+    setActiveLineId(null)
+    setSelectedTokenIndex(-1)
+    setSelectedText(null)
+    setSelectedPhraseRange(null)
+    dragSelectionRef.current = null
+    setDragSelection(null)
+  }
+
+  function focusAiReviewQueue() {
+    const queue = document.getElementById('ai-review-queue')
+    queue?.focus({ preventScroll: true })
+    queue?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  function showAiReviewQueue() {
+    if (editingReadings) focusAiReviewQueue()
+    else {
+      reviewQueueScrollPending.current = true
+      setEditingReadings(true)
+    }
+  }
 
   function startPractice(scope = 'all', songId = activeSong.id, targetLineId = null) {
     const song = allSongs.find((item) => item.id === songId)
@@ -1471,7 +1512,7 @@ export default function App() {
         </div>
       </section>
 
-      <div className="lesson-progress-wrap"><LearningProgress stats={currentProgress} title="本曲学习进度"><details className="line-progress-details"><summary>查看逐句进度 · 点击跳转</summary><div className="line-progress-grid">{activeSong.lines.map((line) => <button className={`${currentProgress.learnedIds.has(line.id) ? 'mastered' : ''} ${currentProgress.reviewIds.has(line.id) ? 'pending' : ''} ${line.id === activeLine.id ? 'current' : ''}`} type="button" key={line.id} aria-label={`第 ${line.displayNumber} 句，${currentProgress.learnedIds.has(line.id) ? '已掌握' : '未掌握'}${currentProgress.reviewIds.has(line.id) ? '，待复习' : ''}`} title={line.text} onClick={() => { if (practiceActive) startPractice('all', activeSong.id, line.id); else chooseLine(line.id); window.requestAnimationFrame(() => document.getElementById(practiceActive ? 'guided-practice' : `lyric-row-${activeSong.id}-${line.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })) }}>{String(line.displayNumber).padStart(2, '0')}{currentProgress.learnedIds.has(line.id) && <Check size={12} />}</button>)}</div><p>绿色＝已掌握，橙色标记＝待复习；描边表示当前句。进度依据你的标记，不是 AI 评分。</p></details></LearningProgress></div>
+      <div className="lesson-progress-wrap"><LearningProgress stats={currentProgress} title="本曲学习进度"><details className="line-progress-details"><summary>查看逐句进度 · 点击跳转</summary><div className="line-progress-grid">{activeSong.lines.map((line) => <button className={`${currentProgress.learnedIds.has(line.id) ? 'mastered' : ''} ${currentProgress.reviewIds.has(line.id) ? 'pending' : ''} ${line.id === activeLineId ? 'current' : ''}`} type="button" key={line.id} aria-label={`第 ${line.displayNumber} 句，${currentProgress.learnedIds.has(line.id) ? '已掌握' : '未掌握'}${currentProgress.reviewIds.has(line.id) ? '，待复习' : ''}`} title={line.text} onClick={() => { if (practiceActive) startPractice('all', activeSong.id, line.id); else chooseLine(line.id); window.requestAnimationFrame(() => document.getElementById(practiceActive ? 'guided-practice' : `lyric-row-${activeSong.id}-${line.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })) }}>{String(line.displayNumber).padStart(2, '0')}{currentProgress.learnedIds.has(line.id) && <Check size={12} />}</button>)}</div><p>绿色＝已掌握，橙色标记＝待复习；描边表示当前句。进度依据你的标记，不是 AI 评分。</p></details></LearningProgress></div>
       <section className={`practice-layout simplified-lesson ${editingReadings && !practiceActive ? 'editing-readings' : ''} ${practiceActive ? 'guided-practice-layout' : ''}`} id="lesson" aria-label="歌词发音学习工作区">
         <aside className="lesson-rail">
           <div className="rail-heading"><span>已导入歌曲</span><span>{allSongs.length} 首</span></div>
@@ -1481,7 +1522,7 @@ export default function App() {
 
         <section className="lyrics-panel" aria-labelledby="lyrics-heading">
           <div className="panel-head"><div><p className="eyebrow">{practiceActive ? 'LISTEN, RECALL, REVEAL' : 'AUTO ANNOTATE, THEN VERIFY'}</p><h2 id="lyrics-heading">{practiceActive ? '逐句练习' : '逐句读音'}</h2></div>{!practiceActive && <div className="view-toggle" role="group" aria-label="读音显示方式">{[['original', '原文'], ['reading', '假名'], ['practice', '遮住练习']].map(([value, label]) => <button className={mode === value ? 'selected' : ''} onClick={() => setMode(value)} type="button" key={value}>{label}</button>)}</div>}</div>
-          {!practiceActive && <div className="pronunciation-strip"><div><span className="strip-index">{annotating ? 'ANNOTATING' : annotationError ? 'OFFLINE' : 'AUTO READY'}</span><b>{annotating ? '正在为整首歌词生成读音…' : annotationError || '点击带假名的汉字词，可在右侧修改读音'}</b></div><span className="source-badge"><WandSparkles size={13} /> SudachiPy + 本地日中词典</span></div>}
+          {!practiceActive && <div className="pronunciation-strip"><div><span className="strip-index">{annotating ? 'ANNOTATING' : annotationError ? 'OFFLINE' : 'AUTO READY'}</span><b>{annotating ? '正在为整首歌词生成读音…' : annotationError || '点击任一词查看详情；开启校对后可修改读音'}</b></div><span className="source-badge"><WandSparkles size={13} /> SudachiPy + 本地日中词典</span></div>}
           <div className="audio-tools"><p className="audio-play-tip"><Volume2 size={13} /> {audioUrl ? practiceActive ? '先听这一句，再尝试自己读出歌词。' : '点击每句右侧的播放按钮，系统会提前 0.5 秒进入本句，并播到下一句。' : <>当前示例不附带音频。<button type="button" className="audio-import-link" onClick={() => { showLibraryPage(); openImportDialog() }}>导入 LRC 与音频</button></>}</p><label className="speed-control"><span>慢放</span><select value={playbackRate} onChange={(event) => choosePlaybackRate(Number(event.target.value))} aria-label="逐句播放速度" disabled={!audioUrl}><option value={1}>1×</option><option value={0.75}>0.75×</option><option value={0.5}>0.5×</option><option value={0.25}>0.25×</option></select></label></div>
           {!practiceActive && <details className="lesson-extra-tools"><summary>AI 与共享工具{sentenceExplanationJob?.songId === activeSong.id ? ' · 正在生成…' : ''}</summary><div className="sentence-explanation-status"><div><Sparkles size={15} /><span>{sentenceExplanationJob?.songId === activeSong.id ? `正在生成整句解析 ${sentenceExplanationJob.ready} / ${sentenceExplanationJob.total}` : `已有 ${readySentenceCount} / ${activeSong.lines.length} 句解析`}</span></div><div className="sentence-share-actions">{readySentenceCount > 0 && <button type="button" onClick={exportCurrentSongAnalysis}><Download size={12} /> 导出解析</button>}{readySentenceCount < activeSong.lines.length && <button type="button" disabled={Boolean(sentenceExplanationJob)} onClick={generateCurrentSongExplanations}>生成剩余解析</button>}<button type="button" onClick={runAiReview} disabled={Boolean(aiBusy)}>{aiBusy === 'review' ? '正在复核…' : 'AI 复核全曲'}</button></div></div><p className="sentence-explanation-disclosure">生成解析和 AI 复核会发送歌词给所选供应商，可能产生费用；本曲估算 {activeSongCostSummary}。</p></details>}
           {!practiceActive && sentenceExplanationError?.songId === activeSong.id && <p className="sentence-explanation-error" role="alert"><CircleAlert size={13} /> {sentenceExplanationError.message}</p>}
@@ -1500,21 +1541,21 @@ export default function App() {
           </section>}
           {!practiceActive && <>
           <p className="selection-guide"><MousePointer2 size={13} /> 按住鼠标左键向右拖过词语，松开后点高亮段右上角的“AI 解释”。</p>
-          <div className="mobile-word-dock"><div><b>{focusToken.surface} <span lang={readingLang}>{focusDisplayReading}</span></b><small>{wordMeaning || '常用意思待补充'}</small></div><button type="button" onClick={openWordDetails}>查看详情</button></div>
+          {hasSelectedLine && <div className="mobile-word-dock"><div><b>{focusToken.surface} <span lang={readingLang}>{focusDisplayReading}</span></b><small>{wordMeaning || '常用意思待补充'}</small></div><button type="button" onClick={openWordDetails}>查看详情</button></div>}
           {reviewNeeded > 0 && <p className="annotation-tip warn"><CircleAlert size={13} /> 有 {reviewNeeded} 个词典未能确定读音，请优先人工校对。</p>}
           {aiError && <p className="annotation-tip ai-error"><CircleAlert size={13} /> {aiError}</p>}
-          {aiReview && <p className="ai-review-summary"><Sparkles size={13} /> AI 已复核 {aiReview.reviewed_token_count} 个词素：{pendingAiSuggestions.length ? <>还有 {pendingAiSuggestions.length} 处待处理建议，<button type="button" onClick={() => document.getElementById('ai-review-queue')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>查看全部</button></> : aiReview.suggestions?.length ? '所有建议均已处理。' : '未发现明显异常；仍建议以原唱为准。'}</p>}
+          {aiReview && <p className="ai-review-summary"><Sparkles size={13} /> AI 已复核 {aiReview.reviewed_token_count} 个词素：{pendingAiSuggestions.length ? <>还有 {pendingAiSuggestions.length} 处待处理建议，<button type="button" onClick={showAiReviewQueue}>查看全部</button></> : aiReview.suggestions?.length ? '所有建议均已处理。' : '未发现明显异常；仍建议以原唱为准。'}</p>}
           <div className="lyrics-list">
             {activeSong.lines.map((line) => {
               const annotation = annotations?.find((item) => item.id === line.id)
               const lineTokens = annotation?.tokens
-              const current = line.id === activeLine.id
+              const current = line.id === activeLineId
               const isPlaying = playingLineId === line.id
               const isLearned = learnedLines.has(line.id)
               const lineReading = getLineReading(lineTokens, corrections, activeSong.id, line.id, readingStyle)
               const hasSentenceExplanation = hasCachedSentenceExplanation(currentSentenceCache, line)
               const sentenceExpanded = sentenceExplanationOpen?.songId === activeSong.id && sentenceExplanationOpen.line.id === line.id
-              return <article id={`lyric-row-${activeSong.id}-${line.id}`} className={`lyric-row ${current ? 'active' : ''}`} onClick={() => chooseLine(line.id)} key={`${activeSong.id}-${line.id}`}>
+              return <article id={`lyric-row-${activeSong.id}-${line.id}`} className={`lyric-row ${current ? 'active' : ''}`} onClick={(event) => { if (event.target.closest('button')) return; if (current) clearLineSelection(); else chooseLine(line.id) }} key={`${activeSong.id}-${line.id}`}>
                 <span className="line-number">{String(line.displayNumber).padStart(2, '0')}</span>
                 <div className="auto-line-wrap">
                   <div className="japanese"><AnnotatedLine tokens={lineTokens} corrections={corrections} songId={activeSong.id} lineId={line.id} mode={mode} readingStyle={readingStyle} selectedIndex={current ? selectedTokenIndex : -1} selectionRange={dragSelection?.lineId === line.id ? dragSelection : selectedPhraseRange?.lineId === line.id ? selectedPhraseRange : null} showSelectionAction={selectedText?.lineId === line.id && selectedPhraseRange?.lineId === line.id} onStartSelection={(tokenIndex) => beginTokenSelection(line.id, tokenIndex)} onExtendSelection={(tokenIndex) => extendTokenSelection(line.id, tokenIndex)} onFinishSelection={finishTokenSelection} onExplainSelection={() => askAiToExplain(selectedText)} onSelectToken={(tokenIndex) => handleTokenClick(line.id, tokenIndex)} /></div>
@@ -1531,21 +1572,21 @@ export default function App() {
         </section>
 
         {!practiceActive && editingReadings && <aside className="word-panel" aria-labelledby="word-heading">
-          <div className="panel-head compact"><div><p className="eyebrow">EDIT THE READING</p><h2 id="word-heading">校对读音</h2></div><span className={`annotation-state ${corrections[focusKey] ? 'corrected' : ''}`}>{corrections[focusKey] ? '已修正' : '自动初稿'}</span></div>
-          <div className="word-card correction-card">
+          <div className="panel-head compact"><div><p className="eyebrow">EDIT THE READING</p><h2 id="word-heading">校对读音</h2></div><span className={`annotation-state ${hasSelectedLine && corrections[focusKey] ? 'corrected' : ''}`}>{hasSelectedLine ? corrections[focusKey] ? '已修正' : '自动初稿' : '未选中'}</span></div>
+          {hasSelectedLine ? <div className="word-card correction-card">
             <div className="word-topline"><span className="word-level">{focusToken.part_of_speech || '词素'}</span><button type="button" aria-label="选中词"><Pencil size={15} /></button></div>
             <div className="word-main"><h3>{focusToken.surface}</h3><p className="word-kana" lang={readingLang}>{focusDisplayReading || '暂无词典读音'}</p><p className="word-meaning">{wordMeaning || '常用意思暂未收录，可在详情中补充'}</p><button className="detail-link" type="button" onClick={openWordDetails}>查看详情 <ChevronRight size={14} /></button></div>
             {focusSuggestion && <div className="ai-suggestion"><span><Sparkles size={12} /> AI 复核建议 · {(focusSuggestion.confidence * 100).toFixed(0)}%</span><p>建议读作「{displayReading(focusSuggestion.suggested_reading, readingStyle)}」：{focusSuggestion.reason}</p><button type="button" onClick={applyAiSuggestion}>采用建议</button></div>}
             <label className="reading-editor"><span>{readingStyle === 'romaji' ? '假名输入（用于校对）' : '假名读音'}</span><input value={draftReading} onChange={(event) => setDraftReading(event.target.value)} placeholder="输入平假名或片假名" lang="ja" /><small>{readingStyle === 'romaji' ? `罗马音预览：${displayReading(draftReading, 'romaji') || '请先输入假名'}` : '如：わすれた / もの / かえる'}</small></label>
             <div className="editor-actions"><button className="save-reading" onClick={saveCorrection} type="button"><Save size={13} /> 保存修正</button>{corrections[focusKey] && <button className="reset-reading" onClick={resetCorrection} type="button">恢复初稿</button>}</div>
-          </div>
-          {pendingAiSuggestions.length > 0 && <section className="ai-review-queue" id="ai-review-queue" aria-labelledby="ai-review-queue-title">
+          </div> : <p className="word-panel-empty">选择歌词中的一个词，即可查看并修改它的读音。</p>}
+          {pendingAiSuggestions.length > 0 && <section className="ai-review-queue" id="ai-review-queue" aria-labelledby="ai-review-queue-title" tabIndex={-1}>
             <div><span className="eyebrow">AI REVIEW QUEUE</span><h3 id="ai-review-queue-title">复核建议 <b>{pendingAiSuggestions.length}</b></h3></div>
-            <ol>{pendingAiSuggestions.map((suggestion) => <li className={suggestion.line_id === activeLine.id && suggestion.token_index === focusToken.index ? 'current' : ''} key={`${suggestion.line_id}-${suggestion.token_index}`}><button type="button" onClick={() => jumpToAiSuggestion(suggestion)}><span>第 {activeSong.lines.find((line) => line.id === suggestion.line_id)?.displayNumber} 句 · {suggestion.surface}</span><small>{displayReading(suggestion.original_reading, readingStyle)} <ChevronRight size={11} /> {displayReading(suggestion.suggested_reading, readingStyle)}</small></button></li>)}</ol>
+            <ol>{pendingAiSuggestions.map((suggestion) => <li className={suggestion.line_id === activeLineId && suggestion.token_index === focusToken.index ? 'current' : ''} key={`${suggestion.line_id}-${suggestion.token_index}`}><button type="button" onClick={() => jumpToAiSuggestion(suggestion)}><span>第 {activeSong.lines.find((line) => line.id === suggestion.line_id)?.displayNumber} 句 · {suggestion.surface}</span><small>{displayReading(suggestion.original_reading, readingStyle)} <ChevronRight size={11} /> {displayReading(suggestion.suggested_reading, readingStyle)}</small></button></li>)}</ol>
           </section>}
-          <div className="word-context"><span>所在句子</span><p>{activeLine.text}</p><small>点击歌词中的其他词，可继续逐词校对。</small></div>
+          {hasSelectedLine && <><div className="word-context"><span>所在句子</span><p>{activeLine.text}</p><small>点击歌词中的其他词，可继续逐词校对。</small></div>
           <div className="practice-checklist"><span>校对建议</span><p>① 先确认自动读音是否合理<br />② 歌词特殊读法按原唱实际修正<br />③ 将有疑问的整句加入复习</p></div>
-          <button className={`review-button ${hasReview ? 'added' : ''}`} onClick={toggleReview} type="button">{hasReview ? <><Check size={13} /> 已加入今日复习</> : <><Plus size={13} /> 加入今日复习</>}</button>
+          <button className={`review-button ${hasReview ? 'added' : ''}`} onClick={toggleReview} type="button">{hasReview ? <><Check size={13} /> 已加入今日复习</> : <><Plus size={13} /> 加入今日复习</>}</button></>}
         </aside>}
       </section>
 
