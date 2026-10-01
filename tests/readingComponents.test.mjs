@@ -55,6 +55,7 @@ test('settings offers both options and reflects persisted selection', () => {
     assert.match(markup, /读音显示方式/)
     assert.match(markup, /平假名/)
     assert.match(markup, /罗马音/)
+    assert.match(markup, /验收构建：/)
     assert.match(markup, new RegExp(`<option value="${style}" selected=""`))
   }
 })

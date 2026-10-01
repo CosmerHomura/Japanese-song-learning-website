@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  define: { __UTA_BUILD_TIME__: JSON.stringify(new Date().toISOString()) },
   // Keep user-provided full-song audio in /song instead of duplicating it under
   // /public. Vite serves these files at the site root in development and copies
   // them into dist for a production build.

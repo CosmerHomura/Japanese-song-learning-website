@@ -18,7 +18,7 @@ npm.cmd run desktop:package  # out/win-unpacked/UTA.exe，便携验收版
 npm.cmd run desktop:make     # out/UTA-Setup-<版本>.exe，NSIS 安装包
 ```
 
-发布新版本时，先在 `package.json` 与 `package-lock.json` 提升版本号并构建安装包；将代码直接推送到 `main`。在 GitHub 为相同版本创建正式 Release（例如 `v0.1.2`，不要设为草稿或预发布），上传 `out/UTA-Setup-<版本>.exe`、`out/UTA-Setup-<版本>.exe.blockmap` 和 `out/latest.yml`。三者须来自同一次构建；不要只上传 EXE 或将旧版 `latest.yml` 搭配新版安装包。更新功能由 `electron-updater` 读取公开 Release；只有安装了带更新功能的 `0.1.1` 或更新版本，才能自动发现后续更高版本。此前的 `0.1.0` 没有更新客户端，需要手动安装 `0.1.1` 或更新版本。桌面快捷方式由 NSIS 安装器自动创建。
+验收阶段可反复使用当前版本号构建安装包，应用的 **设置 → 关于与更新** 会显示构建时间，便于辨认是否打开了新包；同版本包不会通过自动更新互相替换。正式定版发布时，再在 `package.json` 与 `package-lock.json` 提升版本号并构建安装包；将代码直接推送到 `main`。在 GitHub 为相同版本创建正式 Release（例如 `v0.1.2`，不要设为草稿或预发布），上传 `out/UTA-Setup-<版本>.exe`、`out/UTA-Setup-<版本>.exe.blockmap` 和 `out/latest.yml`。三者须来自同一次构建；不要只上传 EXE 或将旧版 `latest.yml` 搭配新版安装包。更新功能由 `electron-updater` 读取公开 Release；只有安装了带更新功能的 `0.1.1` 或更新版本，才能自动发现后续更高版本。此前的 `0.1.0` 没有更新客户端，需要手动安装 `0.1.1` 或更新版本。桌面快捷方式由 NSIS 安装器自动创建。
 
 应用启动约 10 秒后自动检查一次，之后每 6 小时检查，也可以在 **设置 → 关于与更新** 手动检查。发现新版本不会自动下载；用户点击下载并确认重启后才安装。开发版与便携验收目录不用于验证自动升级，应使用正式 NSIS 安装版和一个更高版本的测试 Release 验证。发布前建议在干净 Windows 用户环境测试安装、快捷方式、更新和原有学习数据。
 
