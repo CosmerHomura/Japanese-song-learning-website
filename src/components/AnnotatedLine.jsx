@@ -31,7 +31,7 @@ export default function AnnotatedLine({
         && token.index >= Math.min(selectionRange.startIndex, selectionRange.endIndex)
         && token.index <= Math.max(selectionRange.startIndex, selectionRange.endIndex)
       const isRangeEnd = selectionRange && token.index === Math.max(selectionRange.startIndex, selectionRange.endIndex)
-      return <span className="lyric-token-group" key={key}><button className={`lyric-token ${annotatable ? 'has-ruby' : ''} ${isSelected ? 'selected' : ''} ${isInRange ? 'range-selected' : ''} ${corrections[key] ? 'corrected' : ''}`} type="button" onPointerDown={(event) => {
+      return <span className="lyric-token-group" key={key}><button className={`lyric-token ${annotatable ? 'has-ruby' : ''} ${isSelected ? 'selected' : ''} ${isInRange ? 'range-selected' : ''}`} type="button" onPointerDown={(event) => {
         if (event.button !== 0) return
         event.preventDefault()
         onStartSelection?.(token.index)

@@ -27,6 +27,7 @@ npm.cmd run desktop:make     # out/UTA-Setup-<版本>.exe，NSIS 安装包
 ```powershell
 npm.cmd run build
 node --test tests/*.test.mjs
+npm.cmd run test:ui
 server/.venv/Scripts/python.exe -m unittest discover -s server/tests
 ```
 

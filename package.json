@@ -19,6 +19,7 @@
     "test:backup": "node --test tests/learningBackup.test.mjs tests/analysisShare.test.mjs",
     "test:lyrics": "node --test tests/lrcEncoding.test.mjs tests/learningIdentity.test.mjs",
     "test:readings": "node --test tests/readingDisplay.test.mjs tests/readingComponents.test.mjs",
+    "test:ui": "npm run build && node tests/ui-smoke.cjs",
     "preview": "vite preview"
   },
   "dependencies": {

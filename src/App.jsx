@@ -1,3 +1,9 @@
+import { scrollBehavior } from './lib/uiMotion'
+import useLineAudio from './hooks/useLineAudio'
+import LibraryPage from './pages/LibraryPage'
+import ReviewPage from './pages/ReviewPage'
+import useLearningStore from './hooks/useLearningStore'
+import useReadingPreferences from './hooks/useReadingPreferences'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { BookOpenCheck, Bot, Check, ChevronDown, ChevronRight, Circle, CircleAlert, CircleHelp, Download, Heart, LoaderCircle, MousePointer2, Pause, Pencil, Play, Plus, Save, Search, Settings2, Sparkles, Trash2, Upload, Volume2, WandSparkles, X } from 'lucide-react'
 import AnnotatedLine from './components/AnnotatedLine'
@@ -6,16 +12,15 @@ import SettingsDialog from './components/SettingsDialog'
 import WebSettingsDialog from './components/WebSettingsDialog'
 import SentenceAnalysis from './components/SentenceAnalysis'
 import { formatLrcTimestamp, parseLrcTimestamp } from './lib/lyricTime.mjs'
-import { reconcileModelCatalog } from './lib/modelRefresh.mjs'
+import useAiSettings from './hooks/useAiSettings'
 import { importedSongs } from './data/songs.generated'
 import { demoSongs } from './data/demoSongs'
-import { songArtworkBySource } from './data/songArtwork'
 import twilightStation from './assets/uta-twilight-station.png'
 import utaAppIcon from './assets/uta-app-icon.png'
 import { annotateSongLines, explainSelectionWithAi, explainSentenceBatchWithAi, reviewSongWithAi, searchSongArtwork } from './lib/annotationApi'
 import { createAndStoreLocalSong, deleteLocalSong, loadLocalSongs, parseLrcFile, replaceLocalSongs, updateLocalSongMetadata } from './lib/localSongStore'
 import { BACKUP_STORAGE_KEYS, createLearningBackup, inspectLearningBackup, songsFromLearningBackup } from './lib/learningBackup'
-import { loadLearningState, saveLearningState, learningStateFromBackup, LEARNING_STATE_KEY } from './lib/learningState.mjs'
+import { learningStateFromBackup, LEARNING_STATE_KEY } from './lib/learningState.mjs'
 import { createSongAnalysisFile, importSongAnalysisFile } from './lib/analysisShare'
 import { correctionKey, hasKanji } from './lib/ruby'
 import { isSongHeadingLine, withoutSongHeadingLines } from './lib/songMetadata'
@@ -23,18 +28,12 @@ import LearningProgress from './components/LearningProgress'
 import { songProgress, libraryProgress } from './lib/learningProgress.mjs'
 import { createPracticeSession } from './lib/practiceSession.mjs'
 import { dictionaryPanelVisible } from './lib/dictionaryPanel.mjs'
-import { normalizeReadingPreferences } from './lib/readingPreferences.mjs'
 import { mergeSelectedTokens, restoreMergedToken } from './lib/phraseCorrection.mjs'
-import { annotationMatchesLine, reconcileLearningState } from './lib/learningIdentity'
-import { displayReading, lineReading as getLineReading, normalizeReadingStyle } from './lib/readingDisplay'
+import { annotationMatchesLine } from './lib/learningIdentity'
+import { displayReading, lineReading as getLineReading } from './lib/readingDisplay'
 
 const GUIDE_DISMISSED_KEY = 'uta-quick-start-dismissed-v1'
-const LINE_PLAYBACK_LEAD_IN_SECONDS = 0.5
 const SENTENCE_BATCH_SIZE = 8
-
-function loadLocal(key, fallback) {
-  try { return JSON.parse(localStorage.getItem(key)) ?? fallback } catch { return fallback }
-}
 
 function normalizeSongSearch(value) {
   return String(value || '').normalize('NFKC').toLocaleLowerCase().replace(/\s+/g, '')
@@ -61,10 +60,6 @@ function fallbackTokens(text) {
   }]
 }
 
-function cleanSelectedText(value) {
-  return value.replace(/\s+/g, '').trim().slice(0, 100)
-}
-
 function hasCachedSentenceExplanation(cache, line) {
   const entry = cache?.[line.id]
   return entry?.text === line.text && typeof entry.explanation?.meaning === 'string' && Boolean(entry.explanation.meaning.trim())
@@ -72,9 +67,6 @@ function hasCachedSentenceExplanation(cache, line) {
 
 
 export default function App() {
-  const savedLearning = useMemo(() => loadLearningState(localStorage), [])
-  const savedProgress = savedLearning.progress
-  const [learningState, setLearningState] = useState(savedLearning)
   const [activeSongId, setActiveSongId] = useState(initialSong().id)
   const [activePage, setActivePage] = useState('library')
   const [activeLineId, setActiveLineId] = useState(0)
@@ -85,14 +77,8 @@ export default function App() {
   const [practiceReturnPage, setPracticeReturnPage] = useState('lesson')
   const [practiceSessionLineIds, setPracticeSessionLineIds] = useState([])
   const [practicePosition, setPracticePosition] = useState(0)
-  const [meaningOverrides, setMeaningOverrides] = useState(savedProgress.meaningOverrides || {})
-  const [playbackRate, setPlaybackRate] = useState(savedProgress.playbackRate || 1)
-  const [readingStyle, setReadingStyle] = useState(() => normalizeReadingStyle(savedProgress.readingStyle))
-  const readingLabel = readingStyle === 'romaji' ? '罗马音' : '平假名'
-  const readingLang = readingStyle === 'romaji' ? 'ja-Latn' : 'ja'
   const [localSongs, setLocalSongs] = useState([])
   const [localAudioUrls, setLocalAudioUrls] = useState({})
-  const [aiUsageBySong, setAiUsageBySong] = useState(savedLearning.aiUsage)
   const [sentenceExplanationOpen, setSentenceExplanationOpen] = useState(null)
   const [sentenceExplanationJob, setSentenceExplanationJob] = useState(null)
   const [sentenceExplanationError, setSentenceExplanationError] = useState(null)
@@ -102,13 +88,10 @@ export default function App() {
   const [draftReading, setDraftReading] = useState('')
   const [draftMeaning, setDraftMeaning] = useState('')
   const [detailOpen, setDetailOpen] = useState(false)
-  const [readingPreferences, setReadingPreferences] = useState(() => normalizeReadingPreferences(loadLocal('uta-reading-preferences-v1', {})))
   const [phraseReading, setPhraseReading] = useState('')
   const [segmentationUndo, setSegmentationUndo] = useState({})
   const [phraseMeaning, setPhraseMeaning] = useState('')
   const [motionPreview, setMotionPreview] = useState(0)
-  const [systemReducedMotion, setSystemReducedMotion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches)
-  const pageRef = useRef(null)
   const [detailView, setDetailView] = useState('word')
   const [selectedText, setSelectedText] = useState(null)
   const [dragSelection, setDragSelection] = useState(null)
@@ -116,8 +99,6 @@ export default function App() {
   const [aiExplanation, setAiExplanation] = useState(null)
   const [aiBusy, setAiBusy] = useState('')
   const [aiError, setAiError] = useState('')
-  const [playingLineId, setPlayingLineId] = useState(null)
-  const [audioError, setAudioError] = useState('')
   const [importOpen, setImportOpen] = useState(false)
   const [importLrcFile, setImportLrcFile] = useState(null)
   const [importAudioFile, setImportAudioFile] = useState(null)
@@ -138,56 +119,30 @@ export default function App() {
   const [dictionaryPanelOpen, setDictionaryPanelOpen] = useState(false)
   const [updateStatus, setUpdateStatus] = useState(null)
   const announcedUpdateVersion = useRef('')
-  const [aiSettingsOpen, setAiSettingsOpen] = useState(false)
-  const [webSettingsOpen, setWebSettingsOpen] = useState(false)
   const [settingsTab, setSettingsTab] = useState('ai')
-  const [modelsRefreshing, setModelsRefreshing] = useState(false)
-  const modelRefreshVersion = useRef(0)
-  const [aiSettings, setAiSettings] = useState(null)
-  const [aiModels, setAiModels] = useState([])
-  const [showAllModels, setShowAllModels] = useState(false)
-  const [modelSearch, setModelSearch] = useState('')
   const [editingReadings, setEditingReadings] = useState(false)
-  const [aiSettingsBusy, setAiSettingsBusy] = useState('')
-  const [aiSettingsError, setAiSettingsError] = useState('')
   const [guideOpen, setGuideOpen] = useState(() => localStorage.getItem(GUIDE_DISMISSED_KEY) !== '1')
   const [guideAiConfigured, setGuideAiConfigured] = useState(false)
   const [toast, setToast] = useState('')
+  const { aiSettingsOpen, webSettingsOpen, modelsRefreshing, aiSettings, aiModels, showAllModels, modelSearch, aiSettingsBusy, aiSettingsError, setAiSettingsOpen, setWebSettingsOpen, setModelsRefreshing, setAiSettings, setAiModels, setShowAllModels, setModelSearch, setAiSettingsBusy, setAiSettingsError, openAiSettings, refreshAiModels, saveAiConfiguration, selectAiProvider, selectDiscoveredModel, selectSavedKey, deleteSavedKey } = useAiSettings({ setToast, setGuideAiConfigured })
   const dragSelectionRef = useRef(null)
   const reviewQueueScrollPending = useRef(false)
   const suppressNextTokenClick = useRef(false)
-  const audioRef = useRef(null)
-  const clipEndRef = useRef(null)
-  const pendingClipRef = useRef(null)
   const localAudioUrlRef = useRef({})
   const artworkLookupRef = useRef(new Set())
   const importPreviewRequestRef = useRef(0)
   const importArtworkRequestRef = useRef(0)
-  const backupInputRef = useRef(null)
-  const analysisInputRef = useRef(null)
   const sentenceExplanationJobRef = useRef(null)
 
   const allSongs = useMemo(() => [...importedSongs, ...localSongs, ...demoSongs].map(withoutSongHeadingLines).filter((song) => song.lines.length), [localSongs, importedSongs])
-  // Reconcile before rendering and before every write, including after Vite
-  // reloads generated lyrics or browser-local songs finish loading.
-  const learning = useMemo(() => reconcileLearningState(allSongs, learningState), [allSongs, learningState])
-  const { learnedBySong, reviewItems, favoriteSongIds, corrections, lyricSnapshots } = learning.progress
-  const { annotations: annotationsBySong, aiReviews, sentenceExplanations: sentenceExplanationsBySong } = learning
-  function updateLearningMap(key, update, inProgress = false) {
-    setLearningState((previous) => {
-      const next = reconcileLearningState(allSongs, previous)
-      const container = inProgress ? next.progress : next
-      container[key] = typeof update === 'function' ? update(container[key]) : update
-      return next
-    })
-  }
-  const setLearnedBySong = (update) => updateLearningMap('learnedBySong', update, true)
-  const setReviewItems = (update) => updateLearningMap('reviewItems', update, true)
-  const setFavoriteSongIds = (update) => updateLearningMap('favoriteSongIds', update, true)
-  const setCorrections = (update) => updateLearningMap('corrections', update, true)
-  const setAnnotationsBySong = (update) => updateLearningMap('annotations', update)
-  const setAiReviews = (update) => updateLearningMap('aiReviews', update)
-  const setSentenceExplanationsBySong = (update) => updateLearningMap('sentenceExplanations', update)
+  const { snapshot: learning, setLearnedBySong, setReviewItems, setFavoriteSongIds, setCorrections,
+    setMeaningOverrides, setPlaybackRate, setReadingStyle, setAnnotationsBySong, setAiReviews,
+    setSentenceExplanationsBySong, setAiUsageBySong, removeSongLearning } = useLearningStore(allSongs)
+  const { learnedBySong, reviewItems, favoriteSongIds, corrections, lyricSnapshots, meaningOverrides, playbackRate, readingStyle } = learning.progress
+  const { annotations: annotationsBySong, aiReviews, sentenceExplanations: sentenceExplanationsBySong, aiUsage: aiUsageBySong } = learning
+  const { readingPreferences, setReadingPreferences, systemReducedMotion } = useReadingPreferences()
+  const readingLabel = readingStyle === 'romaji' ? '罗马音' : '平假名'
+  const readingLang = readingStyle === 'romaji' ? 'ja-Latn' : 'ja'
   const visibleLibrarySongs = useMemo(() => {
     const query = normalizeSongSearch(librarySearch)
     const songs = allSongs.filter((song) => !demoSongs.some((demo) => demo.id === song.id))
@@ -205,6 +160,7 @@ export default function App() {
     : activeSong.audioFile
     ? `${import.meta.env.BASE_URL}${activeSong.audioFile.split('/').map((part) => encodeURIComponent(part)).join('/')}`
     : ''
+  const { audioRef, playingLineId, audioError, stopLinePlayback, playLine, handleAudioLoadedMetadata, handleAudioTimeUpdate, handleAudioEnded, handleAudioError } = useLineAudio(activeSong, audioUrl, playbackRate)
   const activeLine = activeSong.lines.find((line) => line.id === activeLineId) || activeSong.lines[0]
   const hasSelectedLine = activeSong.lines.some((line) => line.id === activeLineId)
   const annotations = useMemo(() => annotationsBySong[activeSong.id]?.filter((annotation) =>
@@ -245,12 +201,6 @@ export default function App() {
     return totals
   }, {})).map(([currency, cost]) => `${currency === 'CNY' ? '¥' : currency} ${cost.toFixed(6)}`).join(' + ') || '¥ 0.000000'
 
-  useEffect(() => {
-    saveLearningState(localStorage, {
-      progress: { learnedBySong, reviewItems, favoriteSongIds, corrections, meaningOverrides, playbackRate, lyricSnapshots, readingStyle },
-      annotations: annotationsBySong, aiReviews, sentenceExplanations: sentenceExplanationsBySong, aiUsage: aiUsageBySong,
-    })
-  }, [learnedBySong, reviewItems, favoriteSongIds, corrections, meaningOverrides, playbackRate, lyricSnapshots, readingStyle, annotationsBySong, aiReviews, sentenceExplanationsBySong, aiUsageBySong])
   useEffect(() => {
     if (!guideOpen || !window.utaDesktop?.ai) return undefined
     let disposed = false
@@ -350,22 +300,6 @@ export default function App() {
   }, [activeSong.id, activeSong.lines, annotationsBySong[activeSong.id]])
 
   useEffect(() => {
-    const audio = audioRef.current
-    if (audio) {
-      audio.pause()
-      audio.currentTime = 0
-    }
-    clipEndRef.current = null
-    pendingClipRef.current = null
-    setPlayingLineId(null)
-    setAudioError('')
-  }, [activeSong.id])
-
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.playbackRate = playbackRate
-  }, [playbackRate])
-
-  useEffect(() => {
     const finishOnWindow = () => finishTokenSelection()
     window.addEventListener('pointerup', finishOnWindow)
     return () => window.removeEventListener('pointerup', finishOnWindow)
@@ -395,13 +329,6 @@ export default function App() {
 
   useEffect(() => { setDraftReading(focusReading) }, [focusKey, focusReading])
   useEffect(() => { setDraftMeaning(wordMeaning) }, [meaningKey, wordMeaning])
-
-  function stopLinePlayback() {
-    audioRef.current?.pause()
-    clipEndRef.current = null
-    pendingClipRef.current = null
-    setPlayingLineId(null)
-  }
 
   function chooseSong(songId) {
     stopLinePlayback()
@@ -434,7 +361,7 @@ export default function App() {
   function focusAiReviewQueue() {
     const queue = document.getElementById('ai-review-queue')
     queue?.focus({ preventScroll: true })
-    queue?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    queue?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
   }
 
   function showAiReviewQueue() {
@@ -468,7 +395,7 @@ export default function App() {
 
   useEffect(() => {
     if (!practiceActive || !['lesson', 'review'].includes(activePage)) return
-    const frame = window.requestAnimationFrame(() => document.getElementById('guided-practice')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    const frame = window.requestAnimationFrame(() => document.getElementById('guided-practice')?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }))
     return () => window.cancelAnimationFrame(frame)
   }, [activePage, practiceActive, activeSong.id, practicePosition])
 
@@ -519,13 +446,13 @@ export default function App() {
     chooseSong(songId)
     setActivePage('lesson')
     window.requestAnimationFrame(() => {
-      document.getElementById('lesson')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      document.getElementById('lesson')?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' })
     })
   }
 
   function showLessonPage() {
     setActivePage('lesson')
-    window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }))
+    window.requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: scrollBehavior() }))
   }
 
   function showReviewQueue() {
@@ -534,7 +461,7 @@ export default function App() {
     setPracticeRevealed(false)
     setDetailOpen(false)
     setActivePage('review')
-    window.requestAnimationFrame(() => document.getElementById('review-queue')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+    window.requestAnimationFrame(() => document.getElementById('review-queue')?.scrollIntoView({ behavior: scrollBehavior(), block: 'start' }))
   }
 
   function showLibraryPage({ focusSearch = false } = {}) {
@@ -544,7 +471,7 @@ export default function App() {
     setDetailOpen(false)
     setActivePage('library')
     window.requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      window.scrollTo({ top: 0, behavior: scrollBehavior() })
       if (focusSearch) window.setTimeout(() => document.getElementById('library-search')?.focus(), 100)
     })
   }
@@ -824,24 +751,6 @@ export default function App() {
     }
   }
 
-  async function openAiSettings() {
-    if (!window.utaDesktop?.ai) {
-      setWebSettingsOpen(true)
-      return
-    }
-    setAiSettingsOpen(true)
-    if (aiSettings) return
-    setAiSettingsBusy('load')
-    setAiSettingsError('')
-    try {
-      const loaded = await window.utaDesktop.ai.settings()
-      setAiSettings(loaded)
-      void refreshAiModels(loaded, true)
-    }
-    catch (error) { setAiSettingsError(error instanceof Error ? error.message : '无法读取 AI 设置。') }
-    finally { setAiSettingsBusy('') }
-  }
-
   async function runUpdateAction(action) {
     try {
       const status = await window.utaDesktop.updates[action]()
@@ -849,96 +758,6 @@ export default function App() {
     } catch (error) {
       setUpdateStatus(previous => ({ ...previous, phase: 'error', message: error instanceof Error ? error.message : '更新操作失败。' }))
     }
-  }
-
-  async function refreshAiModels(settingsOverride = aiSettings, quiet = false) {
-    if (!settingsOverride) return
-    const version = ++modelRefreshVersion.current
-    setModelsRefreshing(true)
-    setAiSettingsError('')
-    try {
-      const result = await window.utaDesktop.ai.models(settingsOverride)
-      if (version !== modelRefreshVersion.current) return
-      const models = result.models || []
-      setAiModels(models)
-      setAiSettings(previous => reconcileModelCatalog(previous, settingsOverride.provider, models))
-      if (!quiet) setToast(`已从供应商识别 ${models.length} 个模型。`)
-    } catch (error) { if (version === modelRefreshVersion.current) setAiSettingsError(error instanceof Error ? error.message : '模型列表读取失败。') }
-    finally { if (version === modelRefreshVersion.current) setModelsRefreshing(false) }
-  }
-
-  useEffect(() => {
-    if (!window.utaDesktop?.ai) return
-    let disposed = false
-    window.utaDesktop.ai.settings().then(loaded => {
-      if (disposed) return
-      setAiSettings(previous => previous || loaded)
-      void refreshAiModels(loaded, true)
-    }).catch(() => {})
-    return () => { disposed = true; modelRefreshVersion.current++ }
-  }, [])
-
-  useEffect(() => {
-    if (!aiSettingsOpen) return
-    const closeOnEscape = event => { if (event.key === 'Escape') setAiSettingsOpen(false) }
-    window.addEventListener('keydown', closeOnEscape)
-    return () => window.removeEventListener('keydown', closeOnEscape)
-  }, [aiSettingsOpen])
-
-  async function saveAiConfiguration(event) {
-    event.preventDefault()
-    setAiSettingsBusy('save')
-    setAiSettingsError('')
-    try {
-      const saved = await window.utaDesktop.ai.saveSettings(aiSettings)
-      setAiSettings(saved)
-      setGuideAiConfigured(Boolean(saved.has_api_key))
-      setToast('AI 供应商与模型设置已保存在本机。')
-      setAiSettingsOpen(false)
-    } catch (error) { setAiSettingsError(error instanceof Error ? error.message : 'AI 设置保存失败。') }
-    finally { setAiSettingsBusy('') }
-  }
-
-  function selectAiProvider(provider) {
-    setShowAllModels(false)
-    setModelSearch('')
-    const defaults = aiSettings.provider_defaults?.[provider] || {}
-    const nextSettings = { ...aiSettings, provider, base_url: defaults.base_url || '', model: defaults.model || '', api_key: '', selected_key_id: '', has_api_key: false, input_price: 0, cached_input_price: 0, output_price: 0, currency: 'CNY', pricing_source: '未获取' }
-    setAiSettings(nextSettings)
-    setAiModels([])
-    refreshAiModels(nextSettings, true)
-  }
-
-  function selectDiscoveredModel(modelId) {
-    const discovered = aiModels.find((item) => item.id === modelId)
-    setAiSettings((previous) => ({
-      ...previous,
-      model: modelId,
-      ...(discovered?.input_price != null ? { input_price: discovered.input_price } : {}),
-      ...(discovered?.cached_input_price != null ? { cached_input_price: discovered.cached_input_price } : {}),
-      ...(discovered?.output_price != null ? { output_price: discovered.output_price } : {}),
-      currency: 'CNY',
-      pricing_source: discovered?.pricing_source || '供应商未提供',
-    }))
-  }
-
-  function selectSavedKey(keyId) {
-    const next = { ...aiSettings, selected_key_id: keyId, api_key: '', has_api_key: Boolean(keyId) }
-    setAiSettings(next)
-    refreshAiModels(next, true)
-  }
-
-  async function deleteSavedKey() {
-    if (!aiSettings.selected_key_id || !window.confirm('删除这个本机 API Key？删除后需要重新填写才能使用。')) return
-    setAiSettingsBusy('save')
-    try {
-      const saved = await window.utaDesktop.ai.saveSettings({ ...aiSettings, api_key: '', selected_key_id: '', delete_key_id: aiSettings.selected_key_id })
-      setAiSettings(saved)
-      setGuideAiConfigured(false)
-      setToast('已删除本机 Key。请选择其他账号或新增。')
-      await refreshAiModels(saved, true)
-    } catch (error) { setAiSettingsError(error.message) }
-    finally { setAiSettingsBusy('') }
   }
 
   async function runDictionaryAction(action) {
@@ -1080,17 +899,7 @@ export default function App() {
       localAudioUrlRef.current = remainingUrls
       setLocalAudioUrls(remainingUrls)
       setLocalSongs((previous) => previous.filter((item) => item.id !== song.id))
-      setAnnotationsBySong((previous) => { const { [song.id]: removed, ...rest } = previous; return rest })
-      setAiReviews((previous) => { const { [song.id]: removed, ...rest } = previous; return rest })
-      setSentenceExplanationsBySong((previous) => { const { [song.id]: removed, ...rest } = previous; return rest })
-      setLearnedBySong((previous) => { const { [song.id]: removed, ...rest } = previous; return rest })
-      setReviewItems((previous) => previous.filter((item) => item.songId !== song.id))
-      setFavoriteSongIds((previous) => previous.filter((songId) => songId !== song.id))
-      setCorrections((previous) => Object.fromEntries(Object.entries(previous).filter(([key]) => !key.startsWith(`${song.id}:`))))
-      setLearningState((previous) => {
-        const { [song.id]: removed, ...lyricSnapshots } = previous.progress.lyricSnapshots || {}
-        return { ...previous, progress: { ...previous.progress, lyricSnapshots } }
-      })
+      removeSongLearning(song.id)
       if (song.id === activeSong.id) {
         const nextSong = allSongs.find((item) => item.id !== song.id) || initialSong()
         chooseSong(nextSong.id)
@@ -1106,74 +915,6 @@ export default function App() {
   function choosePlaybackRate(nextRate) {
     setPlaybackRate(nextRate)
     setToast(`已切换为 ${nextRate}× 速度播放。`)
-  }
-
-  function startClipPlayback(clip) {
-    const audio = audioRef.current
-    if (!audio) return
-    if (Number.isFinite(audio.duration) && clip.start >= audio.duration - 0.05) {
-      setPlayingLineId(null)
-      setAudioError('这句 LRC 的时间戳超过了音频时长，请检查歌词时间。')
-      return
-    }
-    const fallbackEnd = Number.isFinite(audio.duration) ? audio.duration : clip.start + 8
-    clipEndRef.current = Math.max(clip.start + 0.12, clip.end ?? fallbackEnd)
-    audio.muted = false
-    if (audio.volume === 0) audio.volume = 1
-    audio.playbackRate = playbackRate
-    try { audio.currentTime = clip.start } catch { /* Wait for metadata if the browser has not seeked yet. */ }
-    audio.play()
-      .then(() => { setPlayingLineId(clip.lineId); setAudioError('') })
-      .catch((error) => {
-        setPlayingLineId(null)
-        setAudioError(error?.name === 'NotSupportedError' ? '该音频编码不受支持，请改用 MP3、M4A、WAV 或 OGG。' : '未能开始播放；请检查系统输出设备与应用音量。')
-      })
-  }
-
-  function playLine(lineId) {
-    if (!audioUrl) {
-      setAudioError('当前示例不附带音频。请在歌曲库导入自己的 LRC 与音频文件。')
-      return
-    }
-    const lineIndex = activeSong.lines.findIndex((line) => line.id === lineId)
-    const line = activeSong.lines[lineIndex]
-    const audio = audioRef.current
-    if (!line || !audio) return
-    if (playingLineId === lineId && !audio.paused) {
-      audio.pause()
-      setPlayingLineId(null)
-      return
-    }
-    const nextStart = activeSong.lines[lineIndex + 1]?.start
-    const clip = {
-      lineId,
-      // LRC marks often land just after the initial consonant. Start a little
-      // early so learners hear the complete onset of the sung line.
-      start: Math.max(0, (line.start || 0) - LINE_PLAYBACK_LEAD_IN_SECONDS),
-      end: Number.isFinite(nextStart) ? nextStart : null,
-    }
-    if (audio.readyState < 1) {
-      pendingClipRef.current = clip
-      audio.load()
-      return
-    }
-    startClipPlayback(clip)
-  }
-
-  function handleAudioLoadedMetadata() {
-    const clip = pendingClipRef.current
-    if (!clip) return
-    pendingClipRef.current = null
-    startClipPlayback(clip)
-  }
-
-  function handleAudioTimeUpdate() {
-    const audio = audioRef.current
-    if (!audio || clipEndRef.current == null || audio.currentTime < clipEndRef.current - 0.04) return
-    audio.pause()
-    audio.currentTime = clipEndRef.current
-    clipEndRef.current = null
-    setPlayingLineId(null)
   }
 
   function toggleLearnedLine(lineId) {
@@ -1302,27 +1043,6 @@ export default function App() {
     setToast('已恢复原来的分词。')
   }
 
-  useEffect(() => {
-    const preferences = normalizeReadingPreferences(readingPreferences)
-    document.documentElement.style.setProperty('--ui-font-size', `${preferences.interfaceSize}px`)
-    document.documentElement.style.setProperty('--lyric-font-size', `${preferences.lyricSize}px`)
-    document.documentElement.dataset.motion = preferences.motion
-    localStorage.setItem('uta-reading-preferences-v1', JSON.stringify(preferences))
-  }, [readingPreferences])
-
-  useEffect(() => {
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)')
-    const update = () => setSystemReducedMotion(query.matches)
-    query.addEventListener('change', update)
-    return () => query.removeEventListener('change', update)
-  }, [])
-
-  useEffect(() => {
-    if (readingPreferences.motion === 'off' || readingPreferences.motion === 'system' && systemReducedMotion) return
-    const animation = pageRef.current?.animate([{ opacity: 0, transform: 'translateY(24px)' }, { opacity: 1, transform: 'translateY(0)' }], { duration: 480, easing: 'cubic-bezier(.2,.8,.2,1)' })
-    return () => animation?.cancel()
-  }, [activePage, readingPreferences.motion, systemReducedMotion])
-
   async function runAiReview() {
     setAiBusy('review')
     setAiError('')
@@ -1415,7 +1135,7 @@ export default function App() {
     setSelectedPhraseRange(null)
     window.requestAnimationFrame(() => {
       document.getElementById(`lyric-row-${activeSong.id}-${suggestion.line_id}`)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        ?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' })
     })
   }
 
@@ -1461,7 +1181,7 @@ export default function App() {
 
   return <>
     <div className="page-grain" aria-hidden="true" />
-    <audio ref={audioRef} src={audioUrl || undefined} preload="auto" onLoadedMetadata={handleAudioLoadedMetadata} onCanPlay={handleAudioLoadedMetadata} onTimeUpdate={handleAudioTimeUpdate} onEnded={() => { clipEndRef.current = null; setPlayingLineId(null) }} onError={() => { setPlayingLineId(null); setAudioError(`未能加载《${activeSong.title}》的音频；请确认文件没有损坏且编码受支持。`) }} />
+    <audio ref={audioRef} src={audioUrl || undefined} preload="auto" onLoadedMetadata={handleAudioLoadedMetadata} onCanPlay={handleAudioLoadedMetadata} onTimeUpdate={handleAudioTimeUpdate} onEnded={handleAudioEnded} onError={handleAudioError} />
     <header className="topbar">
       <button className="brand" type="button" onClick={() => showLibraryPage()} aria-label="返回歌曲库首页" title="返回歌曲库"><img className="brand-icon" src={utaAppIcon} alt="" /><span>UTA<span className="brand-dot">.</span></span></button>
       <nav className="main-nav" aria-label="主导航"><button className={activePage === 'library' ? 'active' : ''} aria-current={activePage === 'library' ? 'page' : undefined} type="button" onClick={() => showLibraryPage()}>歌曲库</button><button className={activePage === 'lesson' ? 'active' : ''} aria-current={activePage === 'lesson' ? 'page' : undefined} type="button" onClick={showLessonPage}>歌曲学习</button><button className={activePage === 'review' ? 'active' : ''} aria-current={activePage === 'review' ? 'page' : undefined} type="button" onClick={showReviewQueue}>复习</button></nav>
@@ -1478,7 +1198,7 @@ export default function App() {
       <p className="quick-start-footnote">关闭后可随时点击顶部的 <CircleHelp size={12} /> 重新查看。</p>
     </section>}
 
-    <main ref={pageRef} id="top" key={activePage} data-reading-style={readingStyle} className={`page-transition ${detailOpen ? 'with-word-sidebar' : ''}`}>
+    <main id="top" key={activePage} data-reading-style={readingStyle} className={`page-transition ${detailOpen ? 'with-word-sidebar' : ''}`}>
       {(activePage === 'lesson' || activePage === 'review' && practiceActive) && <>
       {activePage === 'review' && <div className="review-practice-breadcrumb"><button type="button" onClick={exitPractice}>← 复习列表</button><span> / {activeSong.title} · 本曲待复习句</span></div>}
       <section className="hero anime-hero compact-lesson-header" aria-labelledby="song-title" style={{ '--hero-art': `url(${twilightStation})` }}>
@@ -1512,7 +1232,7 @@ export default function App() {
         </div>
       </section>
 
-      <div className="lesson-progress-wrap"><LearningProgress stats={currentProgress} title="本曲学习进度"><details className="line-progress-details"><summary>查看逐句进度 · 点击跳转</summary><div className="line-progress-grid">{activeSong.lines.map((line) => <button className={`${currentProgress.learnedIds.has(line.id) ? 'mastered' : ''} ${currentProgress.reviewIds.has(line.id) ? 'pending' : ''} ${line.id === activeLineId ? 'current' : ''}`} type="button" key={line.id} aria-label={`第 ${line.displayNumber} 句，${currentProgress.learnedIds.has(line.id) ? '已掌握' : '未掌握'}${currentProgress.reviewIds.has(line.id) ? '，待复习' : ''}`} title={line.text} onClick={() => { if (practiceActive) startPractice('all', activeSong.id, line.id); else chooseLine(line.id); window.requestAnimationFrame(() => document.getElementById(practiceActive ? 'guided-practice' : `lyric-row-${activeSong.id}-${line.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })) }}>{String(line.displayNumber).padStart(2, '0')}{currentProgress.learnedIds.has(line.id) && <Check size={12} />}</button>)}</div><p>绿色＝已掌握，橙色标记＝待复习；描边表示当前句。进度依据你的标记，不是 AI 评分。</p></details></LearningProgress></div>
+      <div className="lesson-progress-wrap"><LearningProgress stats={currentProgress} title="本曲学习进度"><details className="line-progress-details"><summary>查看逐句进度 · 点击跳转</summary><div className="line-progress-grid">{activeSong.lines.map((line) => <button className={`${currentProgress.learnedIds.has(line.id) ? 'mastered' : ''} ${currentProgress.reviewIds.has(line.id) ? 'pending' : ''} ${line.id === activeLineId ? 'current' : ''}`} type="button" key={line.id} aria-label={`第 ${line.displayNumber} 句，${currentProgress.learnedIds.has(line.id) ? '已掌握' : '未掌握'}${currentProgress.reviewIds.has(line.id) ? '，待复习' : ''}`} title={line.text} onClick={() => { if (practiceActive) startPractice('all', activeSong.id, line.id); else chooseLine(line.id); window.requestAnimationFrame(() => document.getElementById(practiceActive ? 'guided-practice' : `lyric-row-${activeSong.id}-${line.id}`)?.scrollIntoView({ behavior: scrollBehavior(), block: 'center' })) }}>{String(line.displayNumber).padStart(2, '0')}{currentProgress.learnedIds.has(line.id) && <Check size={12} />}</button>)}</div><p>绿色＝已掌握，橙色标记＝待复习；描边表示当前句。进度依据你的标记，不是 AI 评分。</p></details></LearningProgress></div>
       <section className={`practice-layout simplified-lesson ${editingReadings && !practiceActive ? 'editing-readings' : ''} ${practiceActive ? 'guided-practice-layout' : ''}`} id="lesson" aria-label="歌词发音学习工作区">
         <aside className="lesson-rail">
           <div className="rail-heading"><span>已导入歌曲</span><span>{allSongs.length} 首</span></div>
@@ -1595,39 +1315,8 @@ export default function App() {
 
       </>}
 
-      {activePage === 'library' && <section className="library-section library-page" id="library" aria-labelledby="library-title">
-<div className="library-top"><div><p className="eyebrow">YOUR IMPORTED SONGS</p><h2 id="library-title">歌曲库</h2><p>先导入歌曲，再进入逐句听读；AI 解析可在学习时按需生成。</p></div><div className="library-top-actions"><label className="library-search"><Search size={14} /><input id="library-search" type="search" value={librarySearch} onChange={(event) => setLibrarySearch(event.target.value)} placeholder="搜索歌名或歌手" aria-label="搜索歌名或歌手" />{librarySearch && <button type="button" onClick={() => setLibrarySearch('')} aria-label="清除搜索"><X size={13} /></button>}</label><span className="library-count">{librarySearch ? `找到 ${visibleLibrarySongs.length} / ${allSongs.filter((song) => !demoSongs.some((demo) => demo.id === song.id)).length} 首` : `已导入 ${collectionProgress.songs} 首`}</span><button className="library-import-trigger" type="button" onClick={openImportDialog}><Upload size={14} /> 导入歌曲</button></div></div>
-        <section className="library-completion-summary visual-completion" aria-label="歌曲库完成情况"><div className="completion-ring" role="img" aria-label={`完成 ${collectionProgress.completed} / ${collectionProgress.songs} 首歌曲`} style={{ '--completion-angle': `${collectionProgress.songs ? collectionProgress.completed / collectionProgress.songs * 360 : 0}deg` }}><span><strong>{collectionProgress.completed}<small> / {collectionProgress.songs}</small></strong><small>首歌曲已完成</small></span></div><div className="completion-copy"><span>歌曲学习进度</span><div className="completion-song-track" role="progressbar" aria-valuemin={0} aria-valuemax={collectionProgress.songs || 1} aria-valuenow={collectionProgress.completed} aria-label="已完成歌曲比例"><i style={{ width: `${collectionProgress.songs ? collectionProgress.completed / collectionProgress.songs * 100 : 0}%` }} /></div><p>已完成 <b>{collectionProgress.completed}</b> 首 · 歌曲总数 <b>{collectionProgress.songs}</b> 首</p></div></section>
-        <div className="library-backup-bar"><div><b>保存或共享学习结果</b><span>完整备份供自己迁移；共享解析不含 API Key、音频或歌词正文。</span></div><div className="library-backup-actions"><button type="button" onClick={exportLearningData} disabled={Boolean(backupBusy)}>{backupBusy === 'export' ? <LoaderCircle className="spin" size={14} /> : <Download size={14} />} 导出备份</button><button type="button" onClick={() => backupInputRef.current?.click()} disabled={Boolean(backupBusy)}>{backupBusy === 'inspect' ? <LoaderCircle className="spin" size={14} /> : <Upload size={14} />} 恢复备份</button><button type="button" onClick={() => analysisInputRef.current?.click()}><Upload size={14} /> 导入共享解析</button><input ref={backupInputRef} type="file" accept=".uta-backup,application/octet-stream" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void prepareBackupRestore(file) }} hidden /><input ref={analysisInputRef} type="file" accept=".uta-analysis,application/json" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ''; void importSharedAnalysis(file) }} hidden /></div></div>
-        {backupError && !backupPreview && <p className="library-backup-error" role="alert"><CircleAlert size={14} /> {backupError}</p>}
-        {visibleLibrarySongs.length ? <div className="song-library-grid">{visibleLibrarySongs.map((song, index) => {
-          const artwork = song.artworkUrl ? { artworkUrl: song.artworkUrl, sourceUrl: song.artworkSourceUrl, provider: song.artworkProvider } : songArtworkBySource[song.sourceFile]
-          const learnedCount = songProgress(song, learnedBySong[song.id] || []).learned
-          const isCurrentSong = song.id === activeSong.id
-          return <article className={`library-song-card ${isCurrentSong ? 'current' : ''}`} key={song.id}>
-            <button className="library-song-open" type="button" onClick={() => chooseSongFromLibrary(song.id)} aria-label={`学习 ${song.title}，${song.artist}`}>
-              <span className="library-cover">
-                <span className="library-cover-fallback" aria-hidden="true">{song.title.slice(0, 2)}</span>
-                {artwork?.artworkUrl && <img src={artwork.artworkUrl} alt={`${song.title} 的发行封面`} loading="lazy" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.hidden = true }} />}
-                <span className="library-cover-shade" aria-hidden="true" />
-                <span className="library-card-index">{String(index + 1).padStart(2, '0')}</span>
-                {isCurrentSong && <span className="library-current-badge">正在学习</span>}
-                <span className="library-local-badge">{song.isLocal ? '网页导入 · 当前浏览器' : song.isDemo ? '内置原创示例' : '来自项目文件夹'}</span>
-              </span>
-              <span className="library-card-copy"><b>{song.title}</b><small>{song.artist}</small><span><BookOpenCheck size={15} /> {learnedCount === song.lines.length ? '已完成' : '未完成'}</span></span>
-            </button>
-            <p className="library-source-note">{song.isLocal ? '可在此删除当前浏览器保存的歌曲，不会删除电脑上的原文件。' : song.isDemo ? '随项目提供的原创练习示例，不提供网页删除入口。' : '如需移除，请将 LRC 移出 geci 后重新同步；构建部署版需重新构建并部署。'}</p>
-            {artwork?.sourceUrl && <a className="library-artwork-source" href={artwork.sourceUrl} target="_blank" rel="noreferrer">封面来源 · {artwork.provider || 'Apple Music'}</a>}
-            {song.isLocal && <button className="library-delete-button" type="button" disabled={deletingSongId === song.id} onClick={() => removeImportedSong(song)} aria-label={`删除 ${song.title}`} title="删除这首本地导入歌曲"><Trash2 size={13} /> {deletingSongId === song.id ? '删除中' : '删除'}</button>}
-          </article>
-        })}</div> : <div className="library-empty-search"><BookOpenCheck size={32} /><h3>{librarySearch ? '没有找到匹配的歌曲' : '从你喜欢的第一首歌开始'}</h3><p>准备同一版本的 LRC 与音频，导入后即可逐句听读。词典和 AI 可以稍后配置。</p><button type="button" onClick={openImportDialog}>导入歌曲</button><button type="button" onClick={() => chooseSongFromLibrary(demoSongs[0].id)}>体验无音频示例</button></div>}
-      </section>}
-      {activePage === 'review' && !practiceActive && <>
-      <section className="review-queue-section" id="review-queue" aria-labelledby="review-queue-title">
-        <div className="review-queue-heading"><div><p className="eyebrow">WORDS IN CONTEXT, ONE LINE AT A TIME</p><h2 id="review-queue-title">待复习的句子 <span>{reviewQueue.length}</span></h2><p>练习时选择“还要再练”，句子就会来到这里；学会后会自动移出。</p></div>{currentSongReviewCount > 0 && <button type="button" onClick={() => startPractice('review')}>练习本首待复习句 <ChevronRight size={15} /></button>}</div>
-        {reviewQueue.length ? <ol className="review-line-list">{reviewQueue.map(({ song, line }) => <li key={`${song.id}:${line.id}`}><button type="button" onClick={() => startPractice('review', song.id, line.id)}><span>{song.title} · 第 {line.displayNumber} 句</span><b lang="ja">{line.text}</b><small>开始练习 <ChevronRight size={13} /></small></button></li>)}</ol> : <p className="review-queue-empty">目前没有待复习句。开始逐句练习，把没把握的句子留下来。</p>}
-      </section>
-      </>}
+      {activePage === 'library' && <LibraryPage librarySearch={librarySearch} setLibrarySearch={setLibrarySearch} visibleLibrarySongs={visibleLibrarySongs} collectionProgress={collectionProgress} learnedBySong={learnedBySong} activeSongId={activeSong.id} deletingSongId={deletingSongId} openImportDialog={openImportDialog} chooseSongFromLibrary={chooseSongFromLibrary} removeImportedSong={removeImportedSong} backupBusy={backupBusy} backupError={backupError} backupPreview={backupPreview} exportLearningData={exportLearningData} prepareBackupRestore={prepareBackupRestore} importSharedAnalysis={importSharedAnalysis} />}
+      {activePage === 'review' && !practiceActive && <ReviewPage reviewQueue={reviewQueue} currentSongReviewCount={currentSongReviewCount} startPractice={startPractice} />}
     </main>
 
     <footer><span>UTA. Learn Japanese, one lyric at a time.</span><span>自动注音在本机生成 · 词义数据：<a href="https://github.com/tomoshi-app/tomoshi-dict-data" target="_blank" rel="noreferrer">Tomoshi / EDRDG</a> · AI 请求仅在你主动点击后发起</span></footer>
