@@ -1,0 +1,36 @@
+/* Geometry is shared across themes; elevation communicates component roles. */
+:root {
+  --radius-panel:24px; --radius-card:20px; --radius-control:12px;
+  --shadow-card:0 3px 14px rgba(35,45,52,.06);
+  --shadow-popup:0 18px 60px rgba(20,29,35,.18);
+}
+[data-theme=night] { --shadow-card:0 3px 14px rgba(0,0,0,.18); --shadow-popup:0 18px 60px rgba(0,0,0,.4); }
+html[data-theme] body #root :is(.backup-dialog,.song-import-dialog,.settings-dialog,.word-detail,.dictionary-download-panel) { border-radius:var(--radius-panel); box-shadow:var(--shadow-popup); }
+html[data-theme] body #root :is(.library-song-card,.learning-progress-card,.guided-card,.review-line-list button) { border-radius:var(--radius-card); box-shadow:var(--shadow-card); }
+html[data-theme] body #root .library-song-card.current { outline:none; border-color:var(--primary); box-shadow:0 0 0 1px var(--primary),var(--shadow-card); }
+html[data-theme] body #root .library-song-open { border-radius:inherit; }
+html[data-theme] body #root .library-page .library-completion-summary { border-radius:var(--radius-panel); background:color-mix(in srgb,var(--primary) 6%,var(--surface)); border:1px solid color-mix(in srgb,var(--primary) 20%,var(--border)); box-shadow:none; }
+html[data-theme] body #root .library-page .library-backup-bar { border-radius:16px; background:var(--soft); border:1px dashed var(--border); box-shadow:none; }
+html[data-theme] body #root .quick-start-steps li { border-radius:16px; box-shadow:none; }
+html[data-theme] body #root :is(.settings-section,.key-management,.word-card,.sentence-inline-analysis,.sentence-analysis-section,.import-preview,.lrc-help,.lesson-extra-tools,.ai-review-queue,.guided-answer) { border-radius:16px; box-shadow:none; }
+html[data-theme] body #root .settings-section { border:1px solid var(--border); }
+html[data-theme] body #root .practice-layout.simplified-lesson { gap:16px; border:0; background:transparent; }
+html[data-theme] body #root .practice-layout .lyrics-panel { border:1px solid var(--border); border-radius:var(--radius-panel); background:var(--surface); box-shadow:var(--shadow-card); }
+html[data-theme] body #root .practice-layout .word-panel { border:1px solid var(--border); border-radius:var(--radius-card); background:var(--soft); }
+html[data-theme] body #root .lyric-row { border-radius:12px; }
+html[data-theme] body #root :is(.play-button,.save-button,.ai-review-button,.library-import-trigger,.library-backup-actions button,.backup-dialog-actions button,.settings-tabs button,.ai-model-row button,.model-list-options button,.settings-dictionary-actions button,.editor-actions button,.sentence-share-actions button,.quick-start-steps button,.guided-card button,.review-queue-heading > button,.review-button,.line-mastery,.sentence-explain-link,.settings-section-heading button,.dictionary-panel-actions button,.library-empty-search button) { border-radius:var(--radius-control); }
+html[data-theme] body #root :is(.play-button,.library-import-trigger) { box-shadow:0 2px 5px rgba(35,45,52,.1); }
+html[data-theme] body #root .play-button:hover { box-shadow:0 4px 10px rgba(35,45,52,.13); }
+html[data-theme] body #root :is(input:not([type=range]):not([type=checkbox]):not([type=radio]),select,textarea,.library-search,.song-file-field) { border-radius:var(--radius-control); }
+html[data-theme] body #root .library-search { min-height:44px; }
+html[data-theme] body #root .library-search input { background:transparent; border-radius:0; }
+html[data-theme] body #root .settings-section-heading button { padding:7px 12px; border:1px solid var(--border); background:var(--soft); color:var(--ink); }
+html[data-theme] body #root :is(.library-count,.library-current-badge,.library-local-badge,.annotation-state,.word-level) { border-radius:999px; padding:4px 10px; }
+html[data-theme] body #root :is(.learning-progress-bar,.dictionary-progress,.update-progress,.progress-track,.completion-song-track) { border-radius:999px; overflow:hidden; }
+html[data-theme] body #root :is(.learning-progress-bar > span,.dictionary-progress > span,.update-progress > span,.progress-track > span) { border-radius:inherit; }
+html[data-theme] body #root .toast { border-radius:14px; }
+@media (max-width:650px) {
+  html[data-theme] body #root .practice-layout { padding:0 12px; }
+  html[data-theme] body #root .word-panel { margin-top:16px; }
+  html[data-theme] body #root :is(.lyrics-panel,.backup-dialog,.song-import-dialog,.settings-dialog,.word-detail,.dictionary-download-panel) { border-radius:20px; }
+}

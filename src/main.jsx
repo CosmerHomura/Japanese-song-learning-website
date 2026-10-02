@@ -7,6 +7,7 @@ import './styles/library.css'
 import './styles/motion.css'
 import './styles/typography.css'
 import './styles/themes.css'
+import './styles/surfaces.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

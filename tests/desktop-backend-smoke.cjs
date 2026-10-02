@@ -9,7 +9,10 @@ const { setTimeout: delay } = require('node:timers/promises')
 
 async function main() {
   const root = path.resolve(__dirname, '..')
-  const executable = path.join(root, 'out/win-unpacked/resources/uta-backend/uta-backend.exe')
+  const output = path.resolve(root, process.argv[2] || 'out')
+  const outputRoot = path.join(root, 'out')
+  assert.ok(output === outputRoot || output.startsWith(outputRoot + path.sep), 'Package output must be inside out')
+  const executable = path.join(output, 'win-unpacked/resources/uta-backend/uta-backend.exe')
   assert.ok(fs.existsSync(executable), 'Build the complete desktop package first')
   const profile = fs.mkdtempSync(path.join(root, 'out/backend-smoke-'))
   const socket = net.createServer()
@@ -60,9 +63,9 @@ async function main() {
     assert.equal(meanings[0].tokens.map(item => item.surface).join(''), '春の風')
     const unauthorized = await fetch(base + '/api/ai/settings')
     assert.equal(unauthorized.status, 403, 'Management routes require the desktop session token')
-    const descriptor = fs.readFileSync(path.join(root, 'out/latest.yml'), 'utf8')
+    const descriptor = fs.readFileSync(path.join(output, 'latest.yml'), 'utf8')
     const version = require('../package.json').version
-    const installer = fs.readFileSync(path.join(root, `out/UTA-Setup-${version}.exe`))
+    const installer = fs.readFileSync(path.join(output, `UTA-Setup-${version}.exe`))
     const hash = crypto.createHash('sha512').update(installer).digest('base64')
     assert.ok(descriptor.includes(hash), 'Updater descriptor must match this installer')
     console.log(`Packaged backend passed: frozen services, annotation/segmentation, authorization, current UI and installer SHA512 (v${version}).`)
