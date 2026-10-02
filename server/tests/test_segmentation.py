@@ -5,7 +5,9 @@ from unittest.mock import patch
 from fastapi import HTTPException
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import app as service
+from server.services import annotation as service
+from server.routes import ai as ai_routes
+from server.schemas import SegmentationRequest
 
 
 class SegmentationTests(unittest.TestCase):
@@ -29,9 +31,9 @@ class SegmentationTests(unittest.TestCase):
         self.assertIn('未命中', result[-1]['dictionary_source'])
 
     @patch.object(service, 'lookup_tomoshi_word', return_value=None)
-    @patch.object(service, 'call_deepseek_json', return_value={'segments': ['四月'], '_billing': {'total_cny': 0.1}})
+    @patch.object(ai_routes, 'call_deepseek_json', return_value={'segments': ['四月'], '_billing': {'total_cny': 0.1}})
     def test_ai_changed_text_is_rejected_but_billing_retained(self, call, lookup):
         from starlette.requests import Request
-        result = service.resegment_with_ai(service.SegmentationRequest(text='4月', line_text='4月に会う'), Request({'type': 'http', 'client': ('127.0.0.1', 1), 'headers': []}))
+        result = ai_routes.resegment_with_ai(SegmentationRequest(text='4月', line_text='4月に会う'), Request({'type': 'http', 'client': ('127.0.0.1', 1), 'headers': []}))
         self.assertEqual(result['tokens'], [])
         self.assertEqual(result['billing']['total_cny'], 0.1)

@@ -34,6 +34,8 @@ function normalize(snapshot) {
   }
 }
 
+export { normalize as normalizeLearningSnapshot }
+
 export function loadLearningState(storage) {
   const current = readJson(storage, LEARNING_STATE_KEY, null)
   if (Number.isInteger(current?.version) && current.version > LEARNING_STATE_VERSION) {

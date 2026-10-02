@@ -1,0 +1,4 @@
+/* Dark library text must not inherit the light lesson's helper-text color. */
+body .library-page .library-backup-bar span { color:#dce8e0; }
+body .library-page .library-backup-actions button:first-child { color:#24382e; }
+body .library-page .library-source-note { font-family:var(--sans); font-size:calc(var(--ui-font-size) * .875); line-height:1.65; }

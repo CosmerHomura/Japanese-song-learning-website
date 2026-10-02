@@ -1,33 +1,10 @@
 import { isCreditLine, isSongHeadingLine } from './songMetadata.js'
 import { decodeLrcBytes } from './lrcEncoding.js'
-
-const DATABASE_NAME = 'uta-local-song-library'
-const DATABASE_VERSION = 1
-const SONG_STORE = 'songs'
-
-function openDatabase() {
-  return new Promise((resolve, reject) => {
-    const request = window.indexedDB.open(DATABASE_NAME, DATABASE_VERSION)
-    request.onerror = () => reject(request.error || new Error('无法打开本地歌曲库。'))
-    request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains(SONG_STORE)) {
-        request.result.createObjectStore(SONG_STORE, { keyPath: 'id' })
-      }
-    }
-    request.onsuccess = () => resolve(request.result)
-  })
-}
+import { SONG_STORE, runDatabaseTransaction, enqueueDatabaseWrite } from './localDatabase.js'
 
 function runTransaction(mode, action) {
-  return openDatabase().then((database) => new Promise((resolve, reject) => {
-    const transaction = database.transaction(SONG_STORE, mode)
-    const store = transaction.objectStore(SONG_STORE)
-    let result
-    try { result = action(store) } catch (error) { database.close(); reject(error); return }
-    transaction.oncomplete = () => { database.close(); resolve(result?.result) }
-    transaction.onerror = () => { database.close(); reject(transaction.error || new Error('本地歌曲库写入失败。')) }
-    transaction.onabort = () => { database.close(); reject(transaction.error || new Error('本地歌曲库操作已取消。')) }
-  }))
+  const run = () => runDatabaseTransaction([SONG_STORE], mode, transaction => action(transaction.objectStore(SONG_STORE)))
+  return mode === 'readwrite' ? enqueueDatabaseWrite(run) : run()
 }
 
 function cleanMetadata(value) {

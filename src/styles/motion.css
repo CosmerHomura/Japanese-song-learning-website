@@ -1,6 +1,11 @@
 /* Motion has one owner. useReadingPreferences resolves on/off/system. */
+.startup-data-state { min-height:100vh; display:grid; place-content:center; text-align:center; gap:16px; padding:32px; }
+.storage-error-banner { padding:16px 24px; margin:0; background:#fff0d6; color:#654923; }
 html[data-motion=on] { scroll-behavior:smooth; }
-html[data-motion=on] .page-transition { animation:page-arrive 320ms cubic-bezier(.2,.8,.2,1) backwards; }
+body { overflow-x:clip; }
+.page-transition[data-page-direction=forward] { --page-shift:36px; }
+.page-transition[data-page-direction=backward] { --page-shift:-36px; }
+html[data-motion=on] .page-transition:not([data-page-direction=initial]) { animation:page-arrive 300ms cubic-bezier(.2,.8,.2,1) backwards; }
 html[data-motion=on] :is(.guided-card,.sentence-inline-analysis,.word-card,.ai-review-queue) { animation:panel-arrive 200ms ease-out backwards; }
 html[data-motion=on] .detail-sidebar-shell { animation:sidebar-arrive 220ms ease-out backwards; }
 body .library-song-card { transition:transform 220ms ease,box-shadow 220ms ease,border-color 220ms ease; }
@@ -10,8 +15,8 @@ body .library-cover img { transition:transform 280ms ease; }
   html[data-motion=on] .library-song-card:hover .library-cover img { transform:scale(1.025); }
 }
 .lyric-token:focus-visible { outline:2px solid #527663; outline-offset:3px; }
-@keyframes page-arrive { from { opacity:.35; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-@keyframes panel-arrive { from { opacity:.5; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+@keyframes page-arrive { from { opacity:.4; transform:translateX(var(--page-shift)); } to { opacity:1; transform:translateX(0); } }
+@keyframes panel-arrive { from { opacity:.5; } to { opacity:1; } }
 @keyframes sidebar-arrive { from { opacity:.4; transform:translateX(12px); } to { opacity:1; transform:translateX(0); } }
 html[data-motion=off],html[data-motion=off] *,html[data-motion=off] *::before,html[data-motion=off] *::after {
   scroll-behavior:auto!important;

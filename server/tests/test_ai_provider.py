@@ -13,7 +13,8 @@ from starlette.requests import Request
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import ai_provider as providers
-import app as service
+from server.services import ai_runtime as service
+from server.routes.ai import ai_status
 
 
 def config(**changes):
@@ -97,7 +98,7 @@ class ProviderTests(unittest.TestCase):
 
     def test_status_never_returns_key(self):
         with patch.dict('os.environ', {'DEEPSEEK_API_KEY': 'server-only-secret'}):
-            result = service.ai_status()
+            result = ai_status()
             self.assertTrue(result['configured'])
             self.assertNotIn('server-only-secret', json.dumps(result))
 

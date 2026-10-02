@@ -28,6 +28,13 @@ export async function searchSongArtwork(title, artist = '') {
   }
 }
 
+export function refreshDictionaryMeanings(lines) {
+  return postAi('/api/annotate/meanings', { lines: lines.map(line => ({ id: line.id, text: line.text, tokens: line.tokens.map(token => ({
+    index: token.index, surface: token.surface, reading: token.reading || '',
+    dictionary_form: token.dictionary_form || token.surface, part_of_speech: token.part_of_speech || '', is_symbol: Boolean(token.is_symbol),
+  })) })) })
+}
+
 async function postAi(path, payload, settings, signal) {
   if (path.startsWith('/api/ai/') && globalThis.window?.utaDesktop?.ai?.request) {
     return globalThis.window.utaDesktop.ai.request(path, payload)
@@ -43,12 +50,20 @@ async function postAi(path, payload, settings, signal) {
   return body
 }
 
-export function reviewSongWithAi(song) {
+export function reviewSongWithAi(song, annotations, corrections = {}) {
   return postAi('/api/ai/review-song', {
     song_id: song.id,
     title: song.title,
     artist: song.artist,
-    lines: song.lines.map(({ id, text }) => ({ id, text })),
+    lines: song.lines.map(({ id, text }) => {
+      const tokens = annotations?.find(line => line.id === id)?.tokens
+      return { id, text, ...(tokens ? { tokens: tokens.map(token => ({
+        index: token.index, surface: token.surface,
+        reading: corrections[`${song.id}:${id}:${token.index}`] || token.reading || '',
+        dictionary_form: token.dictionary_form || token.surface,
+        part_of_speech: token.part_of_speech || '', is_symbol: Boolean(token.is_symbol),
+      })) } : {}) }
+    }),
   })
 }
 

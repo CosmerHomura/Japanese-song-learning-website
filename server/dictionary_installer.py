@@ -26,12 +26,13 @@ class DictionaryInstallCancelled(Exception):
 
 
 class DictionaryInstaller:
-    def __init__(self, data_dir: Path, target_path: Path) -> None:
+    def __init__(self, data_dir: Path, target_path: Path, *, database_lock=None) -> None:
         self.data_dir = data_dir
         self.target_path = target_path
         self.download_path = data_dir / "tomoshi-dict-open.db.partial.zst"
         self.database_partial_path = data_dir / "tomoshi-dict-open.db.partial"
         self._lock = threading.Lock()
+        self._database_lock = database_lock or threading.RLock()
         self._cancel_event = threading.Event()
         self._state: dict[str, Any] = {
             "phase": "ready" if target_path.is_file() else "idle",
@@ -49,8 +50,14 @@ class DictionaryInstaller:
             "download_url": TOMOSHI_LATEST_DOWNLOAD_URL,
             "supported_formats": [".db.zst", ".db", ".sqlite", ".sqlite3"],
         })
-        if state["installed"]:
+        if state["installed"] and state["phase"] == "idle":
             state["phase"] = "ready"
+        if state["installed"]:
+            try:
+                stat = self.target_path.stat()
+                state["revision"] = f"{stat.st_mtime_ns}:{stat.st_size}:{stat.st_ino}"
+            except OSError:
+                state["installed"] = False
         return state
 
     def start_download(self) -> dict[str, Any]:
@@ -161,7 +168,8 @@ class DictionaryInstaller:
         self._raise_if_cancelled()
         self._validate_database(self.database_partial_path)
         self._raise_if_cancelled()
-        os.replace(self.database_partial_path, self.target_path)
+        with self._database_lock:
+            os.replace(self.database_partial_path, self.target_path)
         if delete_source:
             source_path.unlink(missing_ok=True)
         with self._lock:
@@ -183,7 +191,8 @@ class DictionaryInstaller:
         self._raise_if_cancelled()
         self._validate_database(self.database_partial_path)
         self._raise_if_cancelled()
-        os.replace(self.database_partial_path, self.target_path)
+        with self._database_lock:
+            os.replace(self.database_partial_path, self.target_path)
         with self._lock:
             self._state.update({"phase": "ready", "error": ""})
 

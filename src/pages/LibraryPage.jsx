@@ -24,11 +24,11 @@ export default function LibraryPage({ librarySearch, setLibrarySearch, visibleLi
                 <span className="library-cover-shade" aria-hidden="true" />
                 <span className="library-card-index">{String(index + 1).padStart(2, '0')}</span>
                 {isCurrentSong && <span className="library-current-badge">正在学习</span>}
-                <span className="library-local-badge">{song.isLocal ? '网页导入 · 当前浏览器' : song.isDemo ? '内置原创示例' : '来自项目文件夹'}</span>
+                <span className="library-local-badge">{song.isLocal ? '本地导入' : song.isDemo ? '内置原创示例' : '来自项目文件夹'}</span>
               </span>
               <span className="library-card-copy"><b>{song.title}</b><small>{song.artist}</small><span><BookOpenCheck size={15} /> {learnedCount === song.lines.length ? '已完成' : '未完成'}</span></span>
             </button>
-            <p className="library-source-note">{song.isLocal ? '可在此删除当前浏览器保存的歌曲，不会删除电脑上的原文件。' : song.isDemo ? '随项目提供的原创练习示例，不提供网页删除入口。' : '如需移除，请将 LRC 移出 geci 后重新同步；构建部署版需重新构建并部署。'}</p>
+            <p className="library-source-note">{song.isLocal ? '删除仅移除应用中的副本，保留电脑上的原文件。' : song.isDemo ? '随应用提供的原创练习示例。' : '此歌曲随应用提供，你也可以导入自己的歌曲。'}</p>
             {artwork?.sourceUrl && <a className="library-artwork-source" href={artwork.sourceUrl} target="_blank" rel="noreferrer">封面来源 · {artwork.provider || 'Apple Music'}</a>}
             {song.isLocal && <button className="library-delete-button" type="button" disabled={deletingSongId === song.id} onClick={() => removeImportedSong(song)} aria-label={`删除 ${song.title}`} title="删除这首本地导入歌曲"><Trash2 size={13} /> {deletingSongId === song.id ? '删除中' : '删除'}</button>}
           </article>

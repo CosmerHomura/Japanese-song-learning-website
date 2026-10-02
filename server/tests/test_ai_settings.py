@@ -3,28 +3,45 @@
 import sys
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import app as service  # noqa: E402
+from server.services import ai_settings as service, model_catalog as catalog, ai_runtime as runtime
 
 
 class AiSettingsTests(unittest.TestCase):
+    def test_concurrent_key_saves_preserve_all_accounts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "ai-settings.json"
+            with patch.object(service, "AI_SETTINGS_PATH", path), patch.object(service, "CONFIG_DIR", path.parent), \
+                 patch.object(service, "protect", side_effect=lambda value: "protected:" + value), \
+                 patch.object(service, "reveal", side_effect=lambda value: value.removeprefix("protected:")):
+                def save_account(index):
+                    return service.save_ai_settings(service.AiSettingsRequest(
+                        provider="openai", base_url="https://api.openai.com/v1", model="test", api_key=f"fixture-key-{index}", key_name=f"账号 {index}"))
+                with ThreadPoolExecutor(max_workers=6) as executor:
+                    list(executor.map(save_account, range(12)))
+                public = service.public_ai_settings()
+                self.assertEqual(len(public["keys"]), 12)
+                self.assertEqual(len({item["id"] for item in public["keys"]}), 12)
+                self.assertNotIn("api_key", public)
+
     def test_provider_registry_uses_native_ids_and_excludes_retired_models(self):
         registry = {"deepseek": {"models": {
             "native-id": {"name": "Current", "modalities": {"output": ["text"]}},
             "retired": {"status": "deprecated", "modalities": {"output": ["text"]}},
             "image-only": {"modalities": {"output": ["image"]}},
         }}, "openrouter": {"models": {"deepseek/router-only": {"modalities": {"output": ["text"]}}}}}
-        with patch.object(service, "cached_remote_json", return_value=registry):
-            self.assertEqual(list(service.public_provider_catalog("deepseek")), ["native-id"])
+        with patch.object(catalog, "cached_remote_json", return_value=registry):
+            self.assertEqual(list(catalog.public_provider_catalog("deepseek")), ["native-id"])
 
     def test_registry_prices_are_already_per_million(self):
         settings = {"provider": "deepseek", "api_key": "", "base_url": "https://api.deepseek.com", "model": "native-id"}
         row = {"id": "native-id", "name": "Current", "cost": {"input": 1, "cache_read": 0.1, "output": 2}}
-        with patch.object(service, "load_ai_settings", return_value=settings), patch.object(service, "litellm_price_catalog", return_value={}), patch.object(service, "public_provider_catalog", return_value={"native-id": row}), patch.object(service, "usd_to_cny_rate", return_value=(7, "test")):
-            model = service.fetch_ai_models()[0]
+        with patch.object(catalog, "load_ai_settings", return_value=settings), patch.object(catalog, "litellm_price_catalog", return_value={}), patch.object(catalog, "public_provider_catalog", return_value={"native-id": row}), patch.object(catalog, "usd_to_cny_rate", return_value=(7, "test")):
+            model = catalog.fetch_ai_models()[0]
         self.assertEqual(model["input_price"], 7)
         self.assertEqual(model["output_price"], 14)
         self.assertFalse(model["account_verified"])
@@ -56,8 +73,8 @@ class AiSettingsTests(unittest.TestCase):
             "provider": "openrouter", "model": "example", "currency": "CNY",
             "input_price": 10, "cached_input_price": 1, "output_price": 20,
         }
-        with patch.object(service, "usd_to_cny_rate", return_value=(7.2, "test")):
-            billing = service.billing_from_response({
+        with patch.object(runtime, "usd_to_cny_rate", return_value=(7.2, "test")):
+            billing = runtime.billing_from_response({
                 "model": "routed-model",
                 "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150, "cost": 0.00123},
             }, settings)
@@ -81,14 +98,14 @@ class AiSettingsTests(unittest.TestCase):
                 self.assertEqual(len(deleted["keys"]), 1)
 
     def test_native_provider_response_shapes_are_normalized(self):
-        anthropic = service.normalize_provider_response({
+        anthropic = runtime.normalize_provider_response({
             "model": "claude-test",
             "usage": {"input_tokens": 12, "output_tokens": 4, "cache_read_input_tokens": 3},
         }, "anthropic", "fallback")
         self.assertEqual(anthropic["usage"]["prompt_tokens"], 12)
         self.assertEqual(anthropic["usage"]["prompt_cache_hit_tokens"], 3)
 
-        gemini = service.normalize_provider_response({
+        gemini = runtime.normalize_provider_response({
             "modelVersion": "gemini-test",
             "usageMetadata": {"promptTokenCount": 8, "candidatesTokenCount": 2, "totalTokenCount": 10},
         }, "gemini", "fallback")
@@ -96,8 +113,8 @@ class AiSettingsTests(unittest.TestCase):
         self.assertEqual(gemini["model"], "gemini-test")
 
     def test_json_text_is_read_from_anthropic_and_gemini(self):
-        self.assertEqual(service.read_json_text({"content": [{"type": "text", "text": '{"ok": true}'}]}, "anthropic"), {"ok": True})
-        self.assertEqual(service.read_json_text({"candidates": [{"content": {"parts": [{"text": '{"ok": true}'}]}}]}, "gemini"), {"ok": True})
+        self.assertEqual(runtime.read_json_text({"content": [{"type": "text", "text": '{"ok": true}'}]}, "anthropic"), {"ok": True})
+        self.assertEqual(runtime.read_json_text({"candidates": [{"content": {"parts": [{"text": '{"ok": true}'}]}}]}, "gemini"), {"ok": True})
 
     def test_models_can_be_listed_from_public_catalog_without_api_key(self):
         settings = {
@@ -105,15 +122,15 @@ class AiSettingsTests(unittest.TestCase):
             "api_key": "", "has_api_key": False, "input_price": 0, "cached_input_price": 0,
             "output_price": 0, "currency": "CNY", "pricing_source": "未获取",
         }
-        catalog = {"gpt-test": {
+        prices = {"gpt-test": {
             "id": "gpt-test", "mode": "chat", "supported_endpoints": ["/v1/chat/completions"],
             "input_cost_per_token": 0.000001, "output_cost_per_token": 0.000002,
         }}
-        with patch.object(service, "load_ai_settings", return_value=settings), \
-             patch.object(service, "litellm_price_catalog", return_value=catalog), \
-             patch.object(service, "usd_to_cny_rate", return_value=(7.0, "test")), \
-             patch.object(service, "cached_remote_json", return_value={"data": []}):
-            models = service.fetch_ai_models()
+        with patch.object(catalog, "load_ai_settings", return_value=settings), \
+             patch.object(catalog, "litellm_price_catalog", return_value=prices), \
+             patch.object(catalog, "usd_to_cny_rate", return_value=(7.0, "test")), \
+             patch.object(catalog, "cached_remote_json", return_value={"data": []}):
+            models = catalog.fetch_ai_models()
         self.assertEqual(models[0]["id"], "gpt-test")
         self.assertEqual(models[0]["input_price"], 7.0)
         self.assertEqual(models[0]["model_source"], "公开动态模型目录")

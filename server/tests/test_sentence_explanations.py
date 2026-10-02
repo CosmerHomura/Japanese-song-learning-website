@@ -9,15 +9,16 @@ from fastapi import HTTPException
 from starlette.requests import Request
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import app as service  # noqa: E402
+from server.routes import ai as service
+from server.schemas import SentenceContextLine
 
 
 class SentenceExplanationTests(unittest.TestCase):
     def setUp(self):
         self.request = Request({"type": "http", "client": ("127.0.0.1", 1234), "headers": []})
         self.payload = service.ExplainSentenceBatchRequest(lines=[
-            service.SentenceContextLine(id=1, text="君が持ってきた漫画", translation="你带来的漫画"),
-            service.SentenceContextLine(id=2, text="夢ならば", translation="如果是梦"),
+            SentenceContextLine(id=1, text="君が持ってきた漫画", translation="你带来的漫画"),
+            SentenceContextLine(id=2, text="夢ならば", translation="如果是梦"),
         ])
 
     def test_only_requested_valid_explanations_are_returned(self):

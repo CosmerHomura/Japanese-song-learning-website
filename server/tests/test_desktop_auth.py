@@ -8,7 +8,7 @@ from starlette.requests import Request
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from desktop_auth import require_paid_ai_access
-import app as service
+from server.routes import ai as service
 
 
 def request_with_token(token=''):

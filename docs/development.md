@@ -29,11 +29,15 @@ npm.cmd run build
 node --test tests/*.test.mjs
 npm.cmd run test:ui
 server/.venv/Scripts/python.exe -m unittest discover -s server/tests
+# 完整 desktop:make 构建完成后，检查安装产物内的后端、界面与更新校验值
+node tests/desktop-backend-smoke.cjs
 ```
 
 桌面端由 Electron 启动本机 FastAPI sidecar，网页产物由 FastAPI 同源提供；PyInstaller 将 Python 运行时、Sudachi 核心词典和静态页面一起冻结。用户歌曲、词典数据库、API Key、本机模型目录缓存和构建产物都不可提交。密钥由 Windows DPAPI 加密保存在当前用户配置目录；即使这样也不应放进截图、日志或共享解析。
 
-桌面模式下付费 AI 请求经 Electron 受限 IPC 附加当前会话令牌；直接向本地端口请求付费路由会被拒绝。网页开发模式没有桌面会话令牌，仍可使用本机 `.env` 配置。学习记录集中保存在带版本号的本地快照，旧 Local Storage 键与旧版 `.uta-backup` 会自动兼容迁移；歌曲和音频仍由 IndexedDB 保存。
+桌面模式下付费 AI 请求经 Electron 受限 IPC 附加当前会话令牌；直接向本地端口请求付费路由会被拒绝。网页开发模式没有桌面会话令牌，仍可使用本机 `.env` 配置。歌曲、音频和 v2 学习快照统一保存在 IndexedDB；数据库从 v1 升级到 v2 时保留原曲库。旧 Local Storage 学习数据写入新数据库成功后才清理旧键，旧版 `.uta-backup` 继续兼容。恢复备份与删除歌曲使用包含歌曲、学习记录的同一事务，失败整体回滚。字号、动效等轻量偏好仍使用 Local Storage。
+
+`tests/ui-smoke.cjs` 使用隔离的 Electron 用户目录、原创歌词与合成 WAV，拦截外部请求，不操作真实曲库或调用付费 AI。覆盖导入与音频播放、校正持久化、合并/撤销、练习与复习、过期 AI 结果、横向切页及动效偏好、旧数据迁移、恢复失败回滚、删除后的延迟保存、设置后台刷新。
 
 如果在开发环境维护内置歌曲，将 `.lrc` 放入 `geci/`，对应音频放入 `song/`，再运行 `npm.cmd run lyrics:sync`。生成的 `src/data/songs.generated.js`、真实歌曲、音频与封面不进入公开仓库。
 
