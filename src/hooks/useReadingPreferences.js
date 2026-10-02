@@ -21,6 +21,7 @@ export default function useReadingPreferences() {
     root.style.setProperty('--ui-font-size', `${preferences.interfaceSize}px`)
     root.style.setProperty('--lyric-font-size', `${preferences.lyricSize}px`)
     root.dataset.motion = motionEnabled ? 'on' : 'off'
+    root.dataset.theme = preferences.theme
     localStorage.setItem('uta-reading-preferences-v1', JSON.stringify(preferences))
   }, [readingPreferences, motionEnabled])
   return { readingPreferences, setReadingPreferences, systemReducedMotion }

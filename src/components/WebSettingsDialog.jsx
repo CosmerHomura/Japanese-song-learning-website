@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Database, Download, Eye, EyeOff, KeyRound, Languages, LoaderCircle, Save, Upload, X } from 'lucide-react'
 import { clearAiSettings, DEFAULT_AI_SETTINGS, loadAiSettings, saveAiSettings } from '../lib/aiSettings'
 import { getAiStatus, testAiConnection } from '../lib/annotationApi'
+import ThemeChoices from './ThemeChoices'
 
-export default function WebSettingsDialog({ onClose, onExport, onRestore, backupBusy, backupError, readingStyle = 'hiragana', onReadingStyleChange, initialTab = 'data' }) {
+export default function WebSettingsDialog({ onClose, onExport, onRestore, backupBusy, backupError, readingStyle = 'hiragana', onReadingStyleChange, readingPreferences, onPreferencesChange, initialTab = 'data' }) {
   const [tab, setTab] = useState(initialTab)
   const [draft, setDraft] = useState(loadAiSettings)
   const [visible, setVisible] = useState(false)
@@ -81,6 +82,7 @@ export default function WebSettingsDialog({ onClose, onExport, onRestore, backup
       <header className="settings-heading"><div><p className="eyebrow">MAKE IT YOURS</p><h2 id="settings-title">设置</h2><p>管理学习数据，连接你的 AI 服务。</p></div><button type="button" className="settings-close" onClick={onClose} aria-label="关闭设置"><X size={21} /></button></header>
       <div className="settings-tabs" aria-label="设置分类"><button type="button" aria-pressed={tab === 'reading'} onClick={() => setTab('reading')}><Languages size={17} /> 注音显示</button><button type="button" aria-pressed={tab === 'data'} onClick={() => setTab('data')}><Database size={17} /> 数据管理</button><button type="button" aria-pressed={tab === 'ai'} onClick={() => setTab('ai')}><KeyRound size={17} /> AI 服务</button></div>
       {tab === 'reading' ? <div className="settings-content">
+        {readingPreferences && onPreferencesChange && <ThemeChoices preferences={readingPreferences} onChange={onPreferencesChange} />}
         <h3>选择你习惯的注音</h3><p className="settings-description">切换后立即生效，并在当前浏览器保存。歌词原文不会改变。</p>
         <fieldset className="reading-style-options"><legend>注音方式</legend>
           <label><input type="radio" name="reading-style" value="hiragana" checked={readingStyle === 'hiragana'} onChange={() => onReadingStyleChange('hiragana')} /><span><b>平假名</b><small>夢 → ゆめ　·　学校 → がっこう</small></span></label>

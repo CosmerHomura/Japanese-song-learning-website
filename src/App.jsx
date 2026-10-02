@@ -750,7 +750,7 @@ export default function App() {
       saveAiConfiguration,
       runUpdateAction
     }} />}
-    {webSettingsOpen && <WebSettingsDialog readingStyle={readingStyle} onReadingStyleChange={setReadingStyle} onClose={() => setWebSettingsOpen(false)} onExport={exportLearningData} onRestore={async file => {
+    {webSettingsOpen && <WebSettingsDialog readingPreferences={readingPreferences} onPreferencesChange={setReadingPreferences} readingStyle={readingStyle} onReadingStyleChange={setReadingStyle} onClose={() => setWebSettingsOpen(false)} onExport={exportLearningData} onRestore={async file => {
       const ready = await prepareBackupRestore(file);
       if (ready) setWebSettingsOpen(false);
     }} backupBusy={backupBusy} backupError={backupError} />}

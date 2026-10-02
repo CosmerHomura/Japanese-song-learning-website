@@ -500,8 +500,8 @@ body .detail-sidebar-shell .word-detail { width:100%; height:100%; max-height:10
 .settings-tabs button { padding:10px 16px; border-radius:14px; border:1px solid #c8d2c9; background:#f7f5ed; color:#34483c; font:inherit; cursor:pointer; }
 .settings-tabs button[aria-pressed="true"] { background:#344f43; color:white; border-color:#344f43; }
 .settings-refresh-status { display:flex; align-items:center; gap:8px; font-size:var(--ui-font-size); color:#54685d; }
-.ai-settings-dialog:not([data-settings-tab="appearance"]) > .settings-section:not(.update-settings) { display:none; }
-.ai-settings-dialog:not([data-settings-tab="updates"]) > .update-settings { display:none; }
+.ai-settings-dialog:not([data-settings-tab="appearance"]) .settings-dialog-body > .settings-section:not(.update-settings) { display:none; }
+.ai-settings-dialog:not([data-settings-tab="updates"]) .settings-dialog-body > .update-settings { display:none; }
 .ai-settings-dialog:not([data-settings-tab="ai"]) .ai-settings-fields > .settings-section:first-child { display:none; }
 .ai-settings-dialog:not([data-settings-tab="dictionary"]) .ai-settings-fields > .settings-section:nth-child(2) { display:none; }
 .update-available-button { border:1px solid #bd9250; border-radius:99px; background:#fff4dc; color:#68471f; padding:6px 11px; font:inherit; cursor:pointer; }

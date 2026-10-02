@@ -1,3 +1,4 @@
+import ThemeChoices from './ThemeChoices'
 import AnimatedDetails from './AnimatedDetails'
 import { BookOpenCheck, CircleAlert, Download, LoaderCircle, Save, Sparkles, Upload, X, Bot, RefreshCw } from 'lucide-react'
 import { modelChoices, modelLabel } from '../lib/modelChoices.mjs'
@@ -11,11 +12,12 @@ export default function SettingsDialog({ state, actions }) {
     runDictionaryAction, saveAiConfiguration, runUpdateAction } = actions
   return <div className="backup-backdrop" role="presentation" onClick={close}>
     <form className="backup-dialog ai-settings-dialog" data-settings-tab={settingsTab} onSubmit={saveAiConfiguration} onClick={event => event.stopPropagation()}>
-      <button className="backup-close" type="button" onClick={close} aria-label="关闭设置"><X size={18} /></button>
+      <div className="settings-dialog-header"><button className="backup-close" type="button" onClick={close} aria-label="关闭设置"><X size={18} /></button>
       <p className="eyebrow">APPLICATION SETTINGS</p><h2>设置</h2>
-      <nav className="settings-tabs" aria-label="设置分类">{[['ai', 'AI 与模型'], ['dictionary', '本地词典'], ['appearance', '阅读与动效'], ['updates', '关于与更新']].map(([id, label]) => <button key={id} type="button" aria-pressed={settingsTab === id} onClick={() => setSettingsTab(id)}>{label}</button>)}</nav>
+      <nav className="settings-tabs" aria-label="设置分类">{[['ai', 'AI 与模型'], ['dictionary', '本地词典'], ['appearance', '阅读与动效'], ['updates', '关于与更新']].map(([id, label]) => <button key={id} type="button" aria-pressed={settingsTab === id} onClick={() => setSettingsTab(id)}>{label}</button>)}</nav></div>
+      <div className="settings-dialog-body">
       {modelsRefreshing && <p className="settings-refresh-status" role="status"><LoaderCircle className="spin" size={14} /> 正在刷新模型目录…</p>}
-      <section className="settings-section reading-settings"><div className="settings-section-heading"><b>阅读与字号</b><button type="button" onClick={() => setReadingPreferences(DEFAULT_READING_PREFERENCES)}>恢复默认</button></div><label>读音显示方式<select value={readingStyle} onChange={event => setReadingStyle(event.target.value)}><option value="hiragana">平假名</option><option value="romaji">罗马音</option></select></label><label>界面字号 · {readingPreferences.interfaceSize}px<input type="range" min="16" max="24" step="1" value={readingPreferences.interfaceSize} onChange={event => setReadingPreferences({ ...readingPreferences, interfaceSize: Number(event.target.value) })} /></label><label>歌词字号 · {readingPreferences.lyricSize}px<input type="range" min="24" max="40" step="1" value={readingPreferences.lyricSize} onChange={event => setReadingPreferences({ ...readingPreferences, lyricSize: Number(event.target.value) })} /></label><p>调整后自动保存。</p></section>
+      <section className="settings-section reading-settings"><div className="settings-section-heading"><b>阅读与字号</b><button type="button" onClick={() => setReadingPreferences(DEFAULT_READING_PREFERENCES)}>恢复默认</button></div><ThemeChoices preferences={readingPreferences} onChange={setReadingPreferences} /><label>读音显示方式<select value={readingStyle} onChange={event => setReadingStyle(event.target.value)}><option value="hiragana">平假名</option><option value="romaji">罗马音</option></select></label><label>界面字号 · {readingPreferences.interfaceSize}px<input type="range" min="16" max="24" step="1" value={readingPreferences.interfaceSize} onChange={event => setReadingPreferences({ ...readingPreferences, interfaceSize: Number(event.target.value) })} /></label><label>歌词字号 · {readingPreferences.lyricSize}px<input type="range" min="24" max="40" step="1" value={readingPreferences.lyricSize} onChange={event => setReadingPreferences({ ...readingPreferences, lyricSize: Number(event.target.value) })} /></label><p>调整后自动保存。</p></section>
       {aiSettingsBusy === 'load' && <p><LoaderCircle className="spin" size={14} /> 正在读取本机设置…</p>}
       <section className="settings-section"><label>动态效果<select value={readingPreferences.motion} onChange={event => setReadingPreferences({ ...readingPreferences, motion: event.target.value })}><option value="on">开启</option><option value="system">跟随系统</option><option value="off">关闭</option></select></label><p className="field-help">系统减少动态效果：{systemReducedMotion ? '已开启' : '未开启'}。选择“开启”会使用应用动画，不跟随系统禁用。</p><button type="button" onClick={() => setMotionPreview(value => value + 1)}>播放动效预览</button><div className="motion-demo" aria-label="动画预览"><span key={motionPreview}>UTA</span></div></section>
       <section className="settings-section update-settings" aria-label="应用更新"><div className="settings-section-heading"><div><RefreshCw size={17} /><b>版本与更新</b></div><span>当前版本 {updateStatus?.currentVersion || '读取中'}</span></div>
@@ -48,7 +50,8 @@ export default function SettingsDialog({ state, actions }) {
         </section>
       </div>}
       {aiSettingsError && <p className="library-backup-error" role="alert"><CircleAlert size={14} /> {aiSettingsError}</p>}
-      <div className="backup-dialog-actions"><button type="button" onClick={close}>关闭</button>{settingsTab === 'ai' && <button type="submit" disabled={!aiSettings || Boolean(aiSettingsBusy)}>{aiSettingsBusy === 'save' ? <LoaderCircle className="spin" size={14} /> : <Save size={14} />} 保存 AI 设置</button>}</div>
+      </div>
+      <div className="backup-dialog-actions settings-dialog-footer"><button type="button" onClick={close}>关闭</button>{settingsTab === 'ai' && <button type="submit" disabled={!aiSettings || Boolean(aiSettingsBusy)}>{aiSettingsBusy === 'save' ? <LoaderCircle className="spin" size={14} /> : <Save size={14} />} 保存 AI 设置</button>}</div>
     </form>
   </div>
 }

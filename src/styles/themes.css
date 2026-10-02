@@ -1,0 +1,80 @@
+/* Semantic colors shared by every page and overlay. */
+:root,[data-theme=paper] {
+  color-scheme:light; --canvas:#f3efe5; --surface:#fffdf5; --soft:#ece9dc;
+  --ink:#243d32; --muted:#536456; --border:#c4cbbd; --primary:#315b49;
+  --on-primary:#fffef6; --accent:#a4472c; --selected:#f4e4c4; --backdrop:rgba(19,32,25,.58);
+}
+[data-theme=mint] {
+  color-scheme:light; --canvas:#e9f3ee; --surface:#f9fffb; --soft:#deece3;
+  --ink:#163d30; --muted:#486658; --border:#b3cdbd; --primary:#21644b;
+  --on-primary:#ffffff; --accent:#945022; --selected:#d4ebdb; --backdrop:rgba(14,40,29,.54);
+}
+[data-theme=night] {
+  color-scheme:dark; --canvas:#13241f; --surface:#1e342b; --soft:#293f34;
+  --ink:#f1f5e9; --muted:#c1d0bf; --border:#566e59; --primary:#b3dfb7;
+  --on-primary:#153324; --accent:#f4b38c; --selected:#3b5140; --backdrop:rgba(4,12,8,.75);
+}
+html[data-theme] body { background:var(--canvas); color:var(--ink); --line:var(--border); --orange:var(--accent); }
+html[data-theme] body #root :is(.topbar,.library-page,.compact-lesson-header,.review-queue-section,.practice-layout,.lyrics-panel,.word-panel,.method-section,footer,.quick-start-guide) { background:var(--canvas); color:var(--ink); border-color:var(--border); }
+html[data-theme] body #root :is(.backup-dialog,.song-import-dialog,.settings-dialog,.word-detail,.dictionary-download-panel,.guided-card,.learning-progress-card,.settings-section,.library-song-card,.review-line-list button,.quick-start-steps li,.library-backup-bar,.library-completion-summary) { background:var(--surface); color:var(--ink); border-color:var(--border); }
+html[data-theme] body #root :is(.key-management,.phrase-correction-editor,.lrc-help,.lesson-extra-tools,.settings-data-card,.settings-server-note,.import-preview,.import-cover-preview,.segmentation-result,.word-card,.sentence-inline-analysis,.sentence-analysis-section,.song-file-field,.ai-review-queue,.motion-demo) { background:var(--soft); color:var(--ink); border-color:var(--border); }
+html[data-theme] body #root :is(p,small,dt,.eyebrow,.field-help,.roman,.song-meta,.song-meta b,.audio-play-tip,.reading,.translation,.word-context,.annotation-state,.settings-hint,.dictionary-progress-meta,.library-card-copy > span,.library-backup-bar span,.library-count,.learning-progress-values,.lyrics-footer span,footer span,.completion-copy > span) { color:var(--muted); }
+html[data-theme] body #root :is(h1,h2,h3,h4,dd,.japanese,.library-card-copy b,.review-line-list b,.detail-heading p,.settings-section-heading b,.quick-start-steps b,.quick-start-heading h2,.library-top p,.completion-copy p,.main-nav button.active) { color:var(--ink); }
+html[data-theme] body #root .japanese rt { color:var(--muted); }
+html[data-theme] body #root :is(input,select,textarea) { background:var(--surface); color:var(--ink); border-color:var(--border); accent-color:var(--primary); }
+html[data-theme] body #root :is(.main-nav button,.icon-button,.brand,.detail-close,.backup-close,.song-import-close,.settings-close,.view-toggle button,.detail-link,.save-button,.lyrics-footer button,.review-practice-breadcrumb button) { color:var(--ink); }
+html[data-theme] body #root :is(.settings-tabs button,.library-backup-actions button,.ai-model-row button,.model-list-options button,.settings-dictionary-actions button,.editor-actions button,.sentence-share-actions button,.sentence-explain-link,.quick-start-steps button,.theme-choices button) { background:var(--surface); color:var(--ink); border-color:var(--border); }
+html[data-theme] body #root :is(.play-button,.library-import-trigger,.backup-dialog-actions button:last-child,.restore-phrase-button,.phrase-correction-editor button,.detail-ai-action button,.meaning-editor button,.guided-grade button,.quick-start-steps li.complete button,.line-mastery.mastered,.line-progress-grid button.mastered,.settings-tabs button[aria-pressed=true]) { background:var(--primary); color:var(--on-primary); border-color:var(--primary); }
+html[data-theme] body #root .quick-start-steps button { min-height:44px; opacity:1; font-weight:600; }
+html[data-theme] body #root .quick-start-steps li > span { width:32px; height:32px; border-radius:8px; background:var(--primary); color:var(--on-primary); font-size:18px; }
+html[data-theme] body #root .quick-start-steps small { color:var(--muted); }
+html[data-theme] body #root .library-backup-bar b { color:var(--ink); }
+html[data-theme] body #root :is(.library-search,.library-count) { background:var(--surface); color:var(--muted); border-color:var(--border); }
+html[data-theme] body #root input::placeholder { color:var(--muted); opacity:1; }
+html[data-theme] body #root .quick-start-steps li { gap:12px; padding:16px; }
+html[data-theme] body #root .quick-start-steps b { font-size:var(--ui-font-size); }
+html[data-theme] body #root :is(.lyric-row.active,.line-progress-grid button.current,.lyric-token.selected,.lyric-token.range-selected,.theme-choices button[aria-pressed=true]) { background:var(--selected); color:var(--ink); border-color:var(--primary); }
+html[data-theme] body #root :is(.lyric-row:hover,.lyric-token:hover,.song-file-field:hover) { background:var(--soft); }
+html[data-theme] body #root .lyric-token { color:inherit; }
+html[data-theme] body #root :is(.learning-progress-bar,.dictionary-progress,.update-progress,.progress-track) { background:var(--soft); }
+html[data-theme] body #root :is(.learning-progress-bar > span,.dictionary-progress > span,.update-progress > span,.progress-track > span) { background:var(--primary); }
+html[data-theme] body #root .completion-ring { background:conic-gradient(var(--primary) var(--completion-angle),var(--soft) 0); }
+html[data-theme] body #root .completion-ring::before { background:var(--surface); }
+html[data-theme] body #root .completion-ring :is(span,strong,small) { color:var(--ink); }
+html[data-theme] body #root :is(.backup-backdrop,.song-import-backdrop,.settings-backdrop) { background:var(--backdrop); }
+html[data-theme] body #root .toast { background:var(--primary); color:var(--on-primary); }
+html[data-theme] body #root a { color:var(--accent); }
+html[data-theme] body #root :is(.guided-answer,.ai-explanation,.alternative-readings,.ai-tip,.ai-caution,.storage-error-banner) { background:var(--soft); color:var(--ink); border-color:var(--border); }
+html[data-theme] body #root :is(.guided-answer p,.guided-answer b) { color:var(--ink); }
+html[data-theme] body #root :is(.guided-card-top,.guided-counter span,.guided-listen span,.guided-answer > span,.review-line-list span) { color:var(--muted); }
+html[data-theme] body #root :is(.guided-listen button,.guided-navigation button,.guided-finished button,.review-queue-heading > button,.ai-review-button,.line-mastery:not(.mastered),.line-progress-grid button:not(.mastered)) { background:var(--surface); color:var(--ink); border-color:var(--border); }
+html[data-theme] body #root :is(.guided-reveal,.guided-finished button:first-child) { background:var(--primary); color:var(--on-primary); border-color:var(--primary); }
+html[data-theme] body #root .line-progress-grid button.current { background:var(--selected); border-color:var(--primary); }
+
+/* Stable shell: only this inner viewport scrolls when switching categories. */
+body #root .ai-settings-dialog { width:min(860px,100%); height:min(780px,calc(100dvh - 48px)); max-height:calc(100dvh - 48px); padding:0; display:flex; flex-direction:column; overflow:hidden; }
+.settings-dialog-header { flex:none; padding:24px 28px 16px; border-bottom:1px solid var(--border); }
+.settings-dialog-header .settings-tabs { margin-bottom:0; }
+.settings-dialog-body { flex:1; min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; padding:20px 28px; }
+.settings-dialog-footer { flex:none; margin:0; padding:16px 28px; border-top:1px solid var(--border); }
+.reading-settings > label { display:grid; gap:8px; margin-top:16px; }
+.reading-settings > label select { width:100%; min-height:44px; padding:8px 12px; }
+.reading-settings > label input[type=range] { width:100%; }
+body #root .settings-dialog { height:min(780px,calc(100dvh - 48px)); display:flex; flex-direction:column; overflow:hidden; }
+.settings-dialog > :is(.settings-heading,.settings-tabs) { flex:none; }
+.settings-dialog > .settings-content { flex:1; min-height:0; overflow-y:auto; scrollbar-gutter:stable; }
+.theme-choices { padding:0; border:0; margin:18px 0 24px; }
+.theme-choices legend { font-weight:600; margin-bottom:10px; }
+.theme-choices > div { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.theme-choices button { display:grid; gap:5px; padding:12px; border:2px solid var(--border); border-radius:12px; text-align:left; }
+.theme-choices button small { color:inherit!important; }
+.theme-swatch { display:flex; height:32px; overflow:hidden; border-radius:7px; }
+.theme-swatch i { flex:1; background:#f3efe5; }.theme-swatch i:nth-child(2) { background:#fffdf5; }.theme-swatch i:nth-child(3) { background:#315b49; }
+.theme-swatch-mint i { background:#e9f3ee; }.theme-swatch-mint i:nth-child(2) { background:#f9fffb; }.theme-swatch-mint i:nth-child(3) { background:#21644b; }
+.theme-swatch-night i { background:#13241f; }.theme-swatch-night i:nth-child(2) { background:#1e342b; }.theme-swatch-night i:nth-child(3) { background:#b3dfb7; }
+@media (max-width:650px) {
+  body #root :is(.backup-backdrop:has(.ai-settings-dialog),.settings-backdrop) { padding:12px; align-items:center; }
+  body #root :is(.ai-settings-dialog,.settings-dialog) { height:calc(100dvh - 24px); max-height:calc(100dvh - 24px); border-radius:18px; }
+  .settings-dialog-header,.settings-dialog-body,.settings-dialog-footer { padding:16px; }
+  .theme-choices > div { gap:6px; }.theme-choices button { padding:8px; }
+}

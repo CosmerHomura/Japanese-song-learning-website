@@ -47,7 +47,7 @@ async function main() {
     if (req.url === '/seed') { res.end('<!doctype html><title>Test seed</title>'); return }
     if (req.url === '/desktop-test') {
       const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8')
-      const mock = `window.utaDesktop={ai:{settings:async()=>({provider:'deepseek',model:'test-model',base_url:'https://example.invalid',has_api_key:false,keys:[],providers:[{id:'deepseek',label:'测试供应商'}],provider_defaults:{deepseek:{model:'test-model',base_url:'https://example.invalid'}},currency:'CNY',input_price:5,cached_input_price:2,output_price:10,pricing_source:'测试价格'}),models:()=>new Promise(resolve=>{window.__finishModels=()=>resolve({models:[{id:'test-model',name:'测试模型',input_price:5,cached_input_price:2,output_price:10},{id:'unknown-model',name:'未知价格模型'}]})}),saveSettings:async(settings)=>{window.__lastSaved=settings;return {...settings,has_api_key:false}}}}`
+      const mock = `window.utaDesktop={dictionary:{status:async()=>({phase:'ready',installed:true}),onStatusChanged:()=>()=>{}},ai:{settings:async()=>({provider:'deepseek',model:'test-model',base_url:'https://example.invalid',has_api_key:true,keys:[],providers:[{id:'deepseek',label:'测试供应商'}],provider_defaults:{deepseek:{model:'test-model',base_url:'https://example.invalid'}},currency:'CNY',input_price:5,cached_input_price:2,output_price:10,pricing_source:'测试价格'}),models:()=>new Promise(resolve=>{window.__finishModels=()=>resolve({models:[{id:'test-model',name:'测试模型',input_price:5,cached_input_price:2,output_price:10},{id:'unknown-model',name:'未知价格模型'}]})}),saveSettings:async(settings)=>{window.__lastSaved=settings;return {...settings,has_api_key:false}}}}`
       res.setHeader('Content-Type', 'text/html')
       res.end(html.replace('<head>', `<head><script>${mock}</script>`))
       return
@@ -251,11 +251,35 @@ async function main() {
     assert.deepEqual(restoration, { id: 'local-restored-test', audio: [4,5,6], reading: 'ゆっくり' }, 'restore commits audio and learning together and ignores old pending saves')
     await window.loadURL(origin + '/')
     await until(`!!document.querySelector('.library-song-card')`, 'restored library reload')
+    await js(`localStorage.setItem('uta-reading-preferences-v1',JSON.stringify({...JSON.parse(localStorage.getItem('uta-reading-preferences-v1')),motion:'on'}))`)
     await window.loadURL(origin + '/desktop-test')
     await until(`!!window.__finishModels && !!document.querySelector('.library-page')`, 'desktop background model refresh')
     await js(`document.querySelector('[aria-label="应用设置"]').click()`)
     await until(`!!document.querySelector('.settings-refresh-status')`, 'pending refresh shown')
+    const jelly = await js(`(()=>{const dialog=document.querySelector('.ai-settings-dialog'),animation=dialog.getAnimations().find(a=>a.animationName==='popup-jelly');animation.pause();animation.currentTime=218;const matrix=new DOMMatrix(getComputedStyle(dialog).transform);return {x:matrix.a,y:matrix.d}})()`)
+    assert.ok(jelly.x > 1 && jelly.y < 1, 'popup has a restrained jelly overshoot')
+    await js(`document.querySelector('.ai-settings-dialog').getAnimations().forEach(a=>a.finish())`)
+    const settingsBounds = await js(`(()=>{const r=document.querySelector('.ai-settings-dialog').getBoundingClientRect();return [r.x,r.y,r.width,r.height]})()`)
+    for (const tab of ['本地词典','关于与更新','阅读与动效','AI 与模型']) {
+      await clickText(tab)
+      assert.deepEqual(await js(`(()=>{const r=document.querySelector('.ai-settings-dialog').getBoundingClientRect();return [r.x,r.y,r.width,r.height]})()`), settingsBounds, 'settings shell stays in place across categories')
+    }
     await clickText('阅读与动效')
+    for (const theme of ['paper','mint','night']) {
+      await js(`document.querySelector('[data-theme-choice=${theme}]').click()`)
+      await until(`document.documentElement.dataset.theme === '${theme}'`, 'theme applied')
+      assert.equal(await js(`JSON.parse(localStorage.getItem('uta-reading-preferences-v1')).theme`), theme, 'theme saved immediately')
+      await js(`document.querySelectorAll('.backup-backdrop,.ai-settings-dialog').forEach(e=>e.getAnimations().forEach(a=>a.finish()))`)
+      await screenshot(`ui-settings-${theme}.png`)
+      await js(`document.querySelector('[aria-label="关闭设置"]').click();document.querySelector('[aria-label="打开使用引导"]').click()`)
+      await until(`document.querySelectorAll('.quick-start-steps li.complete').length === 3`, 'completed guide states')
+      const contrasts = await js(`(()=>{const lum=color=>{const c=color.match(/[\\d.]+/g).slice(0,3).map(v=>{v=Number(v)/255;return v<=.04045?v/12.92:((v+.055)/1.055)**2.4});return c[0]*.2126+c[1]*.7152+c[2]*.0722};return Array.from(document.querySelectorAll('.quick-start-steps button')).map(button=>{const s=getComputedStyle(button),a=lum(s.color),b=lum(s.backgroundColor);return (Math.max(a,b)+.05)/(Math.min(a,b)+.05)})})()`)
+      assert.ok(contrasts.every(ratio=>ratio>=4.5), `guide contrast meets readable text threshold in ${theme}: ${contrasts}`)
+      await screenshot(`ui-guide-${theme}.png`)
+      await js(`document.querySelector('[aria-label="关闭使用引导"]').click();document.querySelector('[aria-label="应用设置"]').click()`)
+      await clickText('阅读与动效')
+      await js(`document.querySelector('.ai-settings-dialog').getAnimations().forEach(a=>a.finish())`)
+    }
     assert.deepEqual(await js(fontAudit), [], 'visible settings text is at least 16px')
     await js(`{const input=document.querySelector('.reading-settings input[type=range]');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'24');input.dispatchEvent(new Event('input',{bubbles:true}))}`)
     await until(`getComputedStyle(document.querySelector('.main-nav button')).fontSize === '24px'`, 'large font preference applies to controls')
@@ -274,6 +298,16 @@ async function main() {
     await clickText('保存 AI 设置')
     await until(`!!window.__lastSaved`, 'model settings saved')
     assert.equal(await js(`window.__lastSaved.input_price`), 0, 'unknown model does not inherit the previous model price')
+    await js(`document.querySelector('[aria-label="应用设置"]').click()`)
+    await clickText('阅读与动效')
+    await js(`document.querySelector('[data-theme-choice=night]').click()`)
+    await window.loadURL(origin + '/desktop-test')
+    await until(`document.documentElement.dataset.theme === 'night' && !!document.querySelector('.library-page')`, 'theme survives reopening')
+    await js(`localStorage.setItem('uta-reading-preferences-v1',JSON.stringify({...JSON.parse(localStorage.getItem('uta-reading-preferences-v1')),motion:'off'}))`)
+    await window.loadURL(origin + '/desktop-test')
+    await until(`document.documentElement.dataset.motion === 'off' && !!document.querySelector('.library-page')`, 'disabled popup motion preference')
+    await js(`document.querySelector('[aria-label="应用设置"]').click()`)
+    assert.equal(await js(`document.querySelector('.ai-settings-dialog').getAnimations().length`), 0, 'jelly popups honor disabled motion')
     console.log('UI smoke passed: import/audio, corrections, merge/undo, practice/review, stale AI, horizontal motion, migration, atomic restore/rollback, deletion and background settings.')
     console.log(`Isolated test profile: ${profile}`)
   } finally {

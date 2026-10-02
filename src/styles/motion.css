@@ -16,6 +16,15 @@ html[data-motion=on] :is(.icon-button,.avatar,.play-button,.save-button,.library
 html[data-motion=on] .page-transition:not([data-page-direction=initial]) { animation:page-arrive 300ms cubic-bezier(.2,.8,.2,1) backwards; }
 html[data-motion=on] :is(.guided-card,.sentence-inline-analysis,.word-card,.ai-review-queue) { animation:panel-arrive 200ms ease-out backwards; }
 html[data-motion=on] .detail-sidebar-shell { animation:sidebar-arrive 220ms ease-out backwards; }
+html[data-motion=on] :is(.backup-dialog,.song-import-dialog,.settings-dialog,.dictionary-download-panel) { animation:popup-jelly 420ms ease-out backwards; transform-origin:center; }
+html[data-motion=on] :is(.backup-backdrop,.song-import-backdrop,.settings-backdrop) { animation:backdrop-arrive 180ms ease-out backwards; }
+@keyframes popup-jelly {
+  0% { opacity:0; transform:scale(.88,.92); }
+  52% { opacity:1; transform:scale(1.025,.985); }
+  76% { transform:scale(.99,1.015); }
+  100% { opacity:1; transform:scale(1); }
+}
+@keyframes backdrop-arrive { from { opacity:0; } to { opacity:1; } }
 body .library-song-card { transition:transform 220ms ease,box-shadow 220ms ease,border-color 220ms ease; }
 body .library-cover img { transition:transform 280ms ease; }
 @media (hover:hover) and (pointer:fine) {
