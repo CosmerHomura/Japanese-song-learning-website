@@ -11,6 +11,7 @@ from server.ai_provider import Provider, default_provider, request_json
 from server.ai_providers import AI_PROVIDERS
 from server.ai_billing import normalize_provider_response, billing_from_response as _calculate_billing
 from server.services.ai_settings import load_ai_settings
+from server.http_security import validate_api_url, open_credential_request
 from server.services.model_catalog import ai_endpoint, usd_to_cny_rate
 from server.services.ai_cache import AI_CACHE, AI_CACHE_LOCK, AI_CACHE_TTL_SECONDS, AI_REQUESTS, AI_RATE_LOCK
 
@@ -122,6 +123,7 @@ def call_deepseek_json(
         return dict(result)
 
     settings = load_ai_settings(include_key=True)
+    settings["base_url"] = validate_api_url(settings["base_url"])
     provider = AI_PROVIDERS[settings["provider"]]
     protocol = provider["protocol"]
     identity = hashlib.sha256(f"{settings['provider']}:{settings['model']}:{settings['base_url']}:{settings['api_key']}".encode("utf-8")).hexdigest()
@@ -187,7 +189,7 @@ def call_deepseek_json(
             endpoint, data=request_data, headers=headers, method="POST",
         )
         try:
-            with urllib_request.urlopen(http_request, timeout=45) as response:
+            with open_credential_request(http_request, timeout=45) as response:
                 response_body = json.loads(response.read().decode("utf-8"))
             result = read_json_text(response_body, protocol)
             set_cached_ai_result(cache_key, result)

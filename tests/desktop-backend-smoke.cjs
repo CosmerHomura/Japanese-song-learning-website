@@ -63,6 +63,13 @@ async function main() {
     assert.equal(meanings[0].tokens.map(item => item.surface).join(''), '春の風')
     const unauthorized = await fetch(base + '/api/ai/settings')
     assert.equal(unauthorized.status, 403, 'Management routes require the desktop session token')
+    for (const [route, method] of [['settings', 'PUT'], ['models', 'POST']]) {
+      const unsafe = await fetch(base + '/api/ai/' + route, {
+        method, headers: { 'Content-Type': 'application/json', 'X-UTA-Desktop-Token': token },
+        body: JSON.stringify({ provider: 'custom', base_url: 'http://localhost.example.invalid/v1', model: 'test', api_key: 'dummy-not-a-real-key' }),
+      })
+      assert.equal(unsafe.status, 422, 'Frozen settings and model refresh reject spoofed localhost before sending credentials')
+    }
     const descriptor = fs.readFileSync(path.join(output, 'latest.yml'), 'utf8')
     const version = require('../package.json').version
     const installer = fs.readFileSync(path.join(output, `UTA-Setup-${version}.exe`))

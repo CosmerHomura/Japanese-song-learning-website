@@ -9,6 +9,7 @@ from server.config import CONFIG_DIR
 from server.schemas import AiSettingsRequest
 from server.ai_providers import AI_PROVIDERS, AI_PROVIDER_DEFAULTS
 from server.key_vault import protect, reveal
+from server.http_security import validate_api_url
 from server.services.ai_cache import AI_CACHE, AI_CACHE_LOCK
 
 AI_SETTINGS_PATH = CONFIG_DIR / "ai-settings.json"
@@ -53,7 +54,7 @@ def _load_ai_settings(*, include_key: bool = False) -> dict[str, Any]:
     configured_base_url = stored.get("base_url") if provider == "custom" else defaults["base_url"]
     settings = {
         "provider": provider,
-        "base_url": str(configured_base_url or defaults["base_url"]).rstrip("/"),
+        "base_url": validate_api_url(str(configured_base_url or defaults["base_url"])),
         "model": str(stored.get("model") or os.getenv("DEEPSEEK_MODEL") or defaults["model"]),
         "input_price": max(0.0, float(stored.get("input_price") or 0)),
         "cached_input_price": max(0.0, float(stored.get("cached_input_price") or 0)),
@@ -97,9 +98,13 @@ def _save_ai_settings(payload: AiSettingsRequest) -> dict[str, Any]:
         raise HTTPException(status_code=422, detail="不支持的 AI 供应商。")
     provider = AI_PROVIDERS[payload.provider]
     base_url = (payload.base_url if payload.provider == "custom" else provider["base_url"]).strip().rstrip("/")
-    if not base_url.startswith(("https://", "http://127.0.0.1", "http://localhost")):
-        raise HTTPException(status_code=422, detail="API 地址必须使用 HTTPS；本机地址可使用 HTTP。")
-    load_ai_settings()  # Migrate any legacy secret before modifying metadata.
+    base_url = validate_api_url(base_url)
+    try:
+        load_ai_settings()  # Migrate any legacy secret before modifying metadata.
+    except HTTPException as error:
+        # Permit replacing an old invalid endpoint with the validated new one.
+        if error.status_code != 422:
+            raise
     previous = read_settings_document()
     stored = payload.model_dump()
     stored.pop("api_key", None)

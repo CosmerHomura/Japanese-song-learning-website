@@ -39,7 +39,9 @@ node tests/desktop-backend-smoke.cjs
 
 `tests/ui-smoke.cjs` 使用隔离的 Electron 用户目录、原创歌词与合成 WAV，拦截外部请求，不操作真实曲库或调用付费 AI。覆盖导入与音频播放、校正持久化、合并/撤销、练习与复习、过期 AI 结果、横向切页及动效偏好、旧数据迁移、恢复失败回滚、删除后的延迟保存、设置后台刷新；检查主要页面可见文字至少 16px，验证折叠、侧栏退场、掌握反馈及最大界面字号。测试启动器在 Electron 退出后移除本次配置目录，打包后端检查也会清理自己的临时配置。
 
-如果在开发环境维护内置歌曲，将 `.lrc` 放入 `geci/`，对应音频放入 `song/`，再运行 `npm.cmd run lyrics:sync`。生成的 `src/data/songs.generated.js`、真实歌曲、音频与封面不进入公开仓库。
+如果在开发环境维护内置歌曲，将 `.lrc` 放入 `geci/`，对应音频放入 `song/`，再运行 `npm.cmd run lyrics:sync`。仅开发服务读取这些本地歌曲。`npm.cmd run build` 和桌面打包不再执行歌词同步，并用空歌曲模块替代生成模块，也不会复制 `song/` 音频；本地文件保持原样，应用内导入的曲库仍可正常使用。生成的 `src/data/songs.generated.js`、真实歌曲、音频与封面不进入公开仓库或发布包。
+
+带 Key 的供应商请求和模型刷新禁止自动跟随重定向；遇到跳转时请核对供应商公布的最终 API 地址。所有 API 地址统一解析校验，远程接口必须使用 HTTPS；只有 `localhost`、IPv4/IPv6 回环地址允许 HTTP，不接受账号、查询参数或锚点。
 
 网页开发版仍兼容 `server/.env.example` 中的 DeepSeek 配置，但 `.env` 必须留在本机。可选 Tomoshi 词典的许可证和署名要求见 [第三方数据声明](../THIRD_PARTY_DATA_NOTICES.md)。
 

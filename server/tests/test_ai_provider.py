@@ -24,11 +24,11 @@ def config(**changes):
 
 class ProviderTests(unittest.TestCase):
     def test_address_validation(self):
-        for url in ['http://localhost:11434/v1', 'http://192.168.1.2:8080/v1', 'http://[::1]:1234/v1',
+        for url in ['http://localhost:11434/v1', 'http://[::1]:1234/v1',
                     'https://example.com/v1', 'https://example.com/v1/chat/completions/']:
             self.assertTrue(providers.validate_provider(config(base_url=url)).endpoint.endswith('/chat/completions'))
         for url in ['file:///tmp/key', 'http://example.com', 'https://user:pass@example.com',
-                    'https://example.com?key=secret', 'http://169.254.169.254', 'https://example.com:bad']:
+                    'https://example.com?key=secret', 'http://169.254.169.254', 'https://example.com:bad', 'http://192.168.1.2:8080/v1']:
             with self.assertRaises(HTTPException):
                 providers.validate_provider(config(base_url=url))
 

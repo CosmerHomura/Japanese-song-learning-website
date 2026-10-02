@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import hashlib
-import ipaddress
 import json
 import os
 from dataclasses import dataclass, field
 from urllib import error, parse, request
 
 from fastapi import HTTPException
+from server.http_security import NoRedirect, validate_api_url
 
 
 @dataclass(frozen=True)
@@ -46,28 +46,7 @@ def validate_provider(data: dict) -> Provider:
         raise HTTPException(422, '请填写供应商名称和模型名称。')
     if values['api_key'] and not values['api_key'].isascii():
         raise HTTPException(422, 'API Key 包含无效字符，请重新粘贴。')
-    try:
-        url = parse.urlsplit(values['base_url'])
-        port = url.port
-        if not url.hostname or url.username or url.password or url.query or url.fragment:
-            raise ValueError()
-        if url.scheme not in {'https', 'http'}:
-            raise ValueError()
-        try:
-            address = ipaddress.ip_address(url.hostname)
-        except ValueError:
-            address = None
-        local = url.hostname == 'localhost' or bool(address and (
-            address.is_loopback or address in ipaddress.ip_network('10.0.0.0/8')
-            or address in ipaddress.ip_network('172.16.0.0/12')
-            or address in ipaddress.ip_network('192.168.0.0/16')
-            or address in ipaddress.ip_network('fc00::/7')))
-        if address and (address.is_link_local or address.is_multicast or address.is_unspecified):
-            raise ValueError()
-        if url.scheme == 'http' and not local:
-            raise ValueError()
-    except ValueError:
-        raise HTTPException(422, 'API 地址须为 HTTPS；本机或局域网 IP 地址也可使用 HTTP。请勿包含账号、查询参数或锚点。') from None
+    values['base_url'] = validate_api_url(values['base_url'])
     if not isinstance(data.get('json_mode', True), bool):
         raise HTTPException(422, 'JSON 模式设置不正确。')
     return Provider(**values, json_mode=data.get('json_mode', True))
@@ -95,11 +74,6 @@ def provider_from_request(incoming) -> Provider | None:
     # An explicitly supplied empty key is valid for local services; never use
     # the server's DeepSeek key with a user-selected destination.
     return validate_provider(data)
-
-
-class NoRedirect(request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        return None
 
 
 def request_json(provider: Provider, prompt: str, payload: dict, max_tokens: int, thinking: str = 'disabled') -> dict:

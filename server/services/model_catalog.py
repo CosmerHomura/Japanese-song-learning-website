@@ -13,6 +13,7 @@ from server.schemas import AiSettingsRequest
 from server.ai_providers import AI_PROVIDERS
 from server.services.ai_settings import load_ai_settings, saved_key, read_settings_document
 from server.services.ai_cache import AI_CACHE_TTL_SECONDS
+from server.http_security import validate_api_url, open_credential_request
 
 AI_METADATA_CACHE: dict[str, tuple[float, Any]] = {}
 AI_METADATA_DATES: dict[str, str] = {}
@@ -136,6 +137,7 @@ def fetch_ai_models(overrides: AiSettingsRequest | None = None) -> list[dict[str
         })
     if settings["provider"] not in AI_PROVIDERS:
         raise HTTPException(status_code=422, detail="不支持的 AI 供应商。")
+    settings["base_url"] = validate_api_url(settings["base_url"])
     provider = AI_PROVIDERS[settings["provider"]]
     catalog = litellm_price_catalog(provider.get("pricing_provider", ""))
     provider_catalog = public_provider_catalog(settings["provider"])
@@ -162,7 +164,7 @@ def fetch_ai_models(overrides: AiSettingsRequest | None = None) -> list[dict[str
         models_url = provider.get("models_url") or ai_endpoint(settings["base_url"], "models")
         http_request = urllib_request.Request(models_url, headers=headers)
         try:
-            with urllib_request.urlopen(http_request, timeout=20) as response:
+            with open_credential_request(http_request, timeout=20) as response:
                 payload = json.loads(response.read().decode("utf-8"))
             if provider["protocol"] == "gemini":
                 raw_models = payload.get("models", []) if isinstance(payload, dict) else []
