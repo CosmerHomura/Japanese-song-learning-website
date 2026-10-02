@@ -3,6 +3,14 @@
 .storage-error-banner { padding:16px 24px; margin:0; background:#fff0d6; color:#654923; }
 html[data-motion=on] { scroll-behavior:smooth; }
 body { overflow-x:clip; }
+.main-nav { position:relative; }
+body .main-nav button.active::after { content:none; }
+.nav-indicator { position:absolute; pointer-events:none; left:0; bottom:-1px; height:2px; width:var(--nav-width,0px); background:var(--orange); border-radius:2px; transform:translateX(var(--nav-left,0px)); }
+html[data-motion=on] .main-nav[data-indicator-ready=true] .nav-indicator { transition:transform 300ms cubic-bezier(.2,.8,.2,1),width 300ms cubic-bezier(.2,.8,.2,1); }
+html[data-motion=on] .main-nav button { transition:color 160ms ease; }
+html[data-motion=on] :is(.icon-button,.avatar,.play-button,.save-button,.library-import-trigger,.line-play) { transition:transform 140ms ease,background-color 160ms ease,color 160ms ease,box-shadow 160ms ease; }
+html[data-motion=on] :is(.icon-button,.avatar,.play-button,.save-button,.library-import-trigger,.line-play):active:not(:disabled) { transform:scale(.96); }
+:is(.main-nav button,.icon-button,.avatar,.play-button,.library-import-trigger):focus-visible { outline:2px solid #527663; outline-offset:5px; border-radius:6px; }
 .page-transition[data-page-direction=forward] { --page-shift:36px; }
 .page-transition[data-page-direction=backward] { --page-shift:-36px; }
 html[data-motion=on] .page-transition:not([data-page-direction=initial]) { animation:page-arrive 300ms cubic-bezier(.2,.8,.2,1) backwards; }

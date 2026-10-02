@@ -13,6 +13,7 @@ import usePractice from './hooks/usePractice';
 import useDesktopServices from './hooks/useDesktopServices';
 import useSentenceExplanations from './hooks/useSentenceExplanations';
 import usePageNavigation from './hooks/usePageNavigation';
+import MainNavigation from './components/MainNavigation';
 import useLineAudio from './hooks/useLineAudio';
 import LibraryPage from './pages/LibraryPage';
 import ReviewPage from './pages/ReviewPage';
@@ -527,7 +528,7 @@ export default function App() {
     <audio ref={audioRef} src={audioUrl || undefined} preload="auto" onLoadedMetadata={handleAudioLoadedMetadata} onCanPlay={handleAudioLoadedMetadata} onTimeUpdate={handleAudioTimeUpdate} onEnded={handleAudioEnded} onError={handleAudioError} />
     <header className="topbar">
       <button className="brand" type="button" onClick={() => showLibraryPage()} aria-label="返回歌曲库首页" title="返回歌曲库"><img className="brand-icon" src={utaAppIcon} alt="" /><span>UTA<span className="brand-dot">.</span></span></button>
-      <nav className="main-nav" aria-label="主导航"><button className={activePage === 'library' ? 'active' : ''} aria-current={activePage === 'library' ? 'page' : undefined} type="button" onClick={() => showLibraryPage()}>歌曲库</button><button className={activePage === 'lesson' ? 'active' : ''} aria-current={activePage === 'lesson' ? 'page' : undefined} type="button" onClick={showLessonPage}>歌曲学习</button><button className={activePage === 'review' ? 'active' : ''} aria-current={activePage === 'review' ? 'page' : undefined} type="button" onClick={showReviewQueue}>复习</button></nav>
+      <MainNavigation activePage={activePage} onLibrary={() => showLibraryPage()} onLesson={showLessonPage} onReview={showReviewQueue} />
       <div className="top-actions"><button className="icon-button" type="button" onClick={() => setGuideOpen(true)} aria-label="打开使用引导" title="使用引导"><CircleHelp size={19} /></button><button className="icon-button" type="button" onClick={focusLibrarySearch} aria-label="搜索歌曲"><Search size={20} /></button>{['available', 'downloading', 'downloaded'].includes(updateStatus?.phase) && <button className="update-available-button" type="button" onClick={() => {
           setSettingsTab('updates');
           void openAiSettings();

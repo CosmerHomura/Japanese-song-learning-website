@@ -126,6 +126,11 @@ async function main() {
     await until(`(${readSnapshot}).progress.corrections[${JSON.stringify(song.id + ':1:0')}] === 'ゆっくり'`, 'correction persistence')
     await clickText('复习')
     await until(`!!document.querySelector('.review-line-list button')`, 'review page preserves queue')
+    const navigationMotion = await js(`(()=>{const nav=document.querySelector('.main-nav'),indicator=nav.querySelector('.nav-indicator'),animation=indicator.getAnimations().find(a=>a.transitionProperty==='transform');if(!animation)throw Error('Navigation indicator must slide');animation.pause();animation.currentTime=90;const x=new DOMMatrix(getComputedStyle(indicator).transform).m41,target=nav.querySelector('[aria-current=page]').offsetLeft;return {x,target,y:new DOMMatrix(getComputedStyle(indicator).transform).m42}})()`)
+    assert.ok(navigationMotion.x > 0 && navigationMotion.x < navigationMotion.target && navigationMotion.y === 0, 'navigation highlight moves horizontally between labels')
+    await js(`document.querySelector('.nav-indicator').getAnimations().forEach(a=>a.finish())`)
+    const indicatorBounds = await js(`(()=>{const nav=document.querySelector('.main-nav'),indicator=nav.querySelector('.nav-indicator').getBoundingClientRect(),button=nav.querySelector('[aria-current=page]').getBoundingClientRect();return {left:indicator.left-button.left,width:indicator.width-button.width}})()`)
+    assert.ok(Math.abs(indicatorBounds.left) < 1 && Math.abs(indicatorBounds.width) < 1, 'highlight matches the selected label width and position')
     const forwardMotion = await js(`(()=>{const page=document.querySelector('.page-transition'),animation=page.getAnimations()[0];animation.pause();animation.currentTime=90;const matrix=new DOMMatrix(getComputedStyle(page).transform);return {x:matrix.m41,y:matrix.m42}})()`)
     assert.ok(forwardMotion.x > 0 && forwardMotion.y === 0, `page motion is horizontal: ${JSON.stringify(forwardMotion)}`)
     assert.equal(await js(`document.querySelector('.page-transition').dataset.pageDirection`), 'forward')
@@ -140,6 +145,7 @@ async function main() {
       await js(`localStorage.setItem('uta-reading-preferences-v1', JSON.stringify({motion:${JSON.stringify(mode)}}))`)
       await window.loadURL(origin + '/')
       await until(`document.documentElement.dataset.motion === '${expected}'`, `${mode} motion preference`)
+      if (expected === 'off') assert.equal(await js(`getComputedStyle(document.querySelector('.nav-indicator')).transitionDuration`), '0s', 'navigation respects reduced motion')
     }
     assert.ok(await js(`(${readSnapshot}).progress.corrections[${JSON.stringify(song.id + ':1:0')}] === 'ゆっくり'`), 'correction survives reload')
 
