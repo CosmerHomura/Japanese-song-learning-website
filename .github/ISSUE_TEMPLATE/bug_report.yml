@@ -1,0 +1,34 @@
+name: 问题反馈 / Bug report
+description: 报告使用中遇到的问题 / Report a problem
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: "请勿提交 API Key、完整备份或无权公开的歌曲。Never include API keys, full backups or copyrighted song files."
+  - type: input
+    id: version
+    attributes:
+      label: 应用版本 / App version
+      description: 在设置 → 关于与更新中查看 / See Settings → About & updates
+      placeholder: "0.1.3"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: 系统与安装方式 / OS and installation
+      placeholder: "Windows 11 x64，安装版 / installer"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 如何复现 / Steps to reproduce
+      description: 操作步骤、预期结果和实际结果 / Steps, expected result and actual result
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: 截图或补充说明 / Screenshots or details
+      description: 上传前遮盖敏感信息 / Remove sensitive information before uploading
