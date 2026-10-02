@@ -1,0 +1,32 @@
+/* Last stylesheet: a readable baseline across legacy and new components. */
+:root { --ui-font-size:18px; --lyric-font-size:28px; }
+body #root :is(p,li,dt,dd,label,input,select,textarea,summary,button:not(.brand)) {
+  font-size:max(16px,var(--ui-font-size)); line-height:1.7;
+}
+body #root :is(small,.eyebrow,.roman,.roman strong,.song-meta,.song-meta b,.audio-play-tip,.field-help,.dictionary-progress-meta,.annotation-state,.word-level,.word-context,.practice-checklist,.library-count,.library-current-badge,.library-local-badge,.library-artwork-source,.library-card-index,.line-number,.guided-counter,.guided-card-top,.reading,.translation,.library-card-copy > span,.library-backup-bar span,.learning-progress-values,.pronunciation-strip b,.selection-guide,.backup-file-name,.lyrics-footer span,footer span) {
+  font-family:var(--sans); font-size:max(16px,calc(var(--ui-font-size) * .9)); line-height:1.75;
+}
+body #root .japanese rt { font-size:max(16px,calc(var(--lyric-font-size) * .58)); color:#40564b; }
+body #root .japanese .lyric-token { font-size:var(--lyric-font-size); line-height:inherit; font-family:inherit; }
+body #root .toast { font-size:max(16px,var(--ui-font-size)); line-height:1.6; max-width:calc(100vw - 32px); border-radius:12px; }
+body #root .library-song-card.current .library-delete-button { top:56px; }
+body #root .library-backup-bar b { font-size:var(--ui-font-size); }
+body #root :is(.review-queue-heading h2 span,.ai-review-queue h3 b,.pronunciation-strip strong) { font-size:max(16px,var(--ui-font-size)); }
+body #root :is(.import-guide-strip span,.import-guide-strip b,.song-file-field > span,.song-file-field strong,.import-preview-heading b,.import-preview-heading span,.import-preview-line > span,.motion-demo span) { font-size:max(16px,var(--ui-font-size)); line-height:1.7; }
+body #root .import-guide-strip { flex-wrap:wrap; gap:12px; }
+body #root .import-guide-strip b { min-width:28px; height:28px; }
+body #root :is(.settings-section-heading > span,.review-line-list span,.guided-listen span,.detail-heading > span,.detail-line > span,.segmentation-result strong,.ai-review-queue span,.pronunciation-strip span) { font-size:max(16px,calc(var(--ui-font-size) * .9)); line-height:1.75; }
+body #root :is(.sentence-explanation-status,.sentence-explanation-status span,.ai-review-summary,.ai-review-warning,.dictionary-format-hint,.settings-section-heading b) { font-size:max(16px,var(--ui-font-size)); line-height:1.7; }
+body #root :is(.reading,.translation,.field-help,.settings-hint,.settings-description,.settings-note,.settings-heading p,.word-context,.annotation-state,.audio-play-tip,.song-meta,.roman) { color:#4c6055; }
+body #root .library-page :is(.eyebrow,.library-top p,.library-backup-bar span,.library-count) { color:#e1eadf; }
+body #root .line-mastery { min-width:100px; white-space:normal; }
+body #root .lyric-row { grid-template-columns:32px minmax(0,1fr) 112px; }
+body #root .detail-metadata > div { grid-template-columns:88px minmax(0,1fr); }
+body #root :is(.detail-metadata dd,.ai-price-summary dd,.settings-heading p,footer span) { overflow-wrap:anywhere; }
+body #root :is(.main-nav button,.detail-close,.settings-close,.dictionary-close) { min-height:44px; }
+@media (max-width:650px) {
+  body #root .lyric-row { grid-template-columns:26px minmax(0,1fr); }
+  body #root .line-actions { grid-column:2; }
+  body #root .topbar { gap:12px; padding-inline:12px; }
+  body #root .main-nav { gap:12px; }
+}

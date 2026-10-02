@@ -5,6 +5,7 @@ import StartupErrorBoundary from './components/StartupErrorBoundary'
 import './styles.css'
 import './styles/library.css'
 import './styles/motion.css'
+import './styles/typography.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

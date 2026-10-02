@@ -1,3 +1,5 @@
+import MasteryButton from '../components/MasteryButton'
+import AnimatedDetails from '../components/AnimatedDetails'
 import { scrollBehavior } from '../lib/uiMotion';
 import { BookOpenCheck, Check, ChevronDown, ChevronRight, Circle, CircleAlert, Download, Heart, MousePointer2, Pause, Pencil, Play, Plus, Save, Sparkles, Volume2, WandSparkles, X } from 'lucide-react';
 import AnnotatedLine from '../components/AnnotatedLine';
@@ -140,13 +142,13 @@ export default function LessonPage({
         </div>
       </section>
 
-      <div className="lesson-progress-wrap"><LearningProgress stats={currentProgress} title="本曲学习进度"><details className="line-progress-details"><summary>查看逐句进度 · 点击跳转</summary><div className="line-progress-grid">{activeSong.lines.map(line => <button className={`${currentProgress.learnedIds.has(line.id) ? 'mastered' : ''} ${currentProgress.reviewIds.has(line.id) ? 'pending' : ''} ${line.id === activeLineId ? 'current' : ''}`} type="button" key={line.id} aria-label={`第 ${line.displayNumber} 句，${currentProgress.learnedIds.has(line.id) ? '已掌握' : '未掌握'}${currentProgress.reviewIds.has(line.id) ? '，待复习' : ''}`} title={line.text} onClick={() => {
+      <div className="lesson-progress-wrap"><LearningProgress stats={currentProgress} title="本曲学习进度"><AnimatedDetails className="line-progress-details" title={<>查看逐句进度 · 点击跳转</>}><div className="line-progress-grid">{activeSong.lines.map(line => <button className={`${currentProgress.learnedIds.has(line.id) ? 'mastered' : ''} ${currentProgress.reviewIds.has(line.id) ? 'pending' : ''} ${line.id === activeLineId ? 'current' : ''}`} type="button" key={line.id} aria-label={`第 ${line.displayNumber} 句，${currentProgress.learnedIds.has(line.id) ? '已掌握' : '未掌握'}${currentProgress.reviewIds.has(line.id) ? '，待复习' : ''}`} title={line.text} onClick={() => {
               if (practiceActive) startPractice('all', activeSong.id, line.id);else chooseLine(line.id);
               window.requestAnimationFrame(() => document.getElementById(practiceActive ? 'guided-practice' : `lyric-row-${activeSong.id}-${line.id}`)?.scrollIntoView({
                 behavior: scrollBehavior(),
                 block: 'center'
               }));
-            }}>{String(line.displayNumber).padStart(2, '0')}{currentProgress.learnedIds.has(line.id) && <Check size={12} />}</button>)}</div><p>绿色＝已掌握，橙色标记＝待复习；描边表示当前句。进度依据你的标记，不是 AI 评分。</p></details></LearningProgress></div>
+            }}>{String(line.displayNumber).padStart(2, '0')}{currentProgress.learnedIds.has(line.id) && <Check size={12} />}</button>)}</div><p>绿色为已掌握，橙色为待复习。</p></AnimatedDetails></LearningProgress></div>
       <section className={`practice-layout simplified-lesson ${editingReadings && !practiceActive ? 'editing-readings' : ''} ${practiceActive ? 'guided-practice-layout' : ''}`} id="lesson" aria-label="歌词发音学习工作区">
         <aside className="lesson-rail">
           <div className="rail-heading"><span>已导入歌曲</span><span>{allSongs.length} 首</span></div>
@@ -161,7 +163,7 @@ export default function LessonPage({
                 showLibraryPage();
                 openImportDialog();
               }}>导入 LRC 与音频</button></>}</p><label className="speed-control"><span>慢放</span><select value={playbackRate} onChange={event => choosePlaybackRate(Number(event.target.value))} aria-label="逐句播放速度" disabled={!audioUrl}><option value={1}>1×</option><option value={0.75}>0.75×</option><option value={0.5}>0.5×</option><option value={0.25}>0.25×</option></select></label></div>
-          {!practiceActive && <details className="lesson-extra-tools"><summary>AI 与共享工具{sentenceExplanationJob?.songId === activeSong.id ? ' · 正在生成…' : ''}</summary><div className="sentence-explanation-status"><div><Sparkles size={15} /><span>{sentenceExplanationJob?.songId === activeSong.id ? `正在生成整句解析 ${sentenceExplanationJob.ready} / ${sentenceExplanationJob.total}` : `已有 ${readySentenceCount} / ${activeSong.lines.length} 句解析`}</span></div><div className="sentence-share-actions">{readySentenceCount > 0 && <button type="button" onClick={exportCurrentSongAnalysis}><Download size={12} /> 导出解析</button>}{readySentenceCount < activeSong.lines.length && <button type="button" disabled={Boolean(sentenceExplanationJob)} onClick={generateCurrentSongExplanations}>生成剩余解析</button>}<button type="button" onClick={runAiReview} disabled={Boolean(aiBusy)}>{aiBusy === 'review' ? '正在复核…' : 'AI 复核全曲'}</button></div></div><p className="sentence-explanation-disclosure">生成解析和 AI 复核会发送歌词给所选供应商，可能产生费用；本曲估算 {activeSongCostSummary}。</p></details>}
+          {!practiceActive && <AnimatedDetails className="lesson-extra-tools" title={<>AI 与共享工具{sentenceExplanationJob?.songId === activeSong.id ? ' · 正在生成…' : ''}</>}><div className="sentence-explanation-status"><div><Sparkles size={15} /><span>{sentenceExplanationJob?.songId === activeSong.id ? `正在生成整句解析 ${sentenceExplanationJob.ready} / ${sentenceExplanationJob.total}` : `已有 ${readySentenceCount} / ${activeSong.lines.length} 句解析`}</span></div><div className="sentence-share-actions">{readySentenceCount > 0 && <button type="button" onClick={exportCurrentSongAnalysis}><Download size={12} /> 导出解析</button>}{readySentenceCount < activeSong.lines.length && <button type="button" disabled={Boolean(sentenceExplanationJob)} onClick={generateCurrentSongExplanations}>生成剩余解析</button>}<button type="button" onClick={runAiReview} disabled={Boolean(aiBusy)}>{aiBusy === 'review' ? '正在复核…' : 'AI 复核全曲'}</button></div></div><p className="sentence-explanation-disclosure">生成解析和 AI 复核会发送歌词给所选供应商，可能产生费用；本曲估算 {activeSongCostSummary}。</p></AnimatedDetails>}
           {!practiceActive && sentenceExplanationError?.songId === activeSong.id && <p className="sentence-explanation-error" role="alert"><CircleAlert size={13} /> {sentenceExplanationError.message}</p>}
           {!practiceActive && <div className="practice-launch"><div><b>把这一句真正练会</b><span>先听、自己读并猜意思，再揭晓答案。</span></div><div><button className="practice-start" type="button" onClick={() => startPractice('all', activeSong.id, activeLine.id)}><BookOpenCheck size={15} /> 开始逐句练习</button>{currentSongReviewCount > 0 && <button className="practice-review-start" type="button" onClick={() => startPractice('review')}>只练待复习的 {currentSongReviewCount} 句</button>}</div></div>}
           {practiceActive && <section className="guided-card" id="guided-practice" aria-label="逐句练习卡片">
@@ -205,10 +207,10 @@ export default function LessonPage({
                 <div className="line-actions"><button className={`line-action line-play ${isPlaying ? 'playing' : ''}`} type="button" disabled={!audioUrl} onClick={event => {
                     event.stopPropagation();
                     playLine(line.id);
-                  }} aria-label={audioUrl ? `${isPlaying ? '暂停' : '播放'}第 ${line.displayNumber} 句` : `第 ${line.displayNumber} 句没有音频`} title={audioUrl ? `${isPlaying ? '暂停' : '播放'}这一句` : '请先在歌曲库导入 LRC 与音频'}>{isPlaying ? <Pause size={13} fill="currentColor" /> : <Play size={13} fill="currentColor" />}</button><button className={`line-mastery ${isLearned ? 'mastered' : ''}`} type="button" aria-pressed={isLearned} onClick={event => {
+                  }} aria-label={audioUrl ? `${isPlaying ? '暂停' : '播放'}第 ${line.displayNumber} 句` : `第 ${line.displayNumber} 句没有音频`} title={audioUrl ? `${isPlaying ? '暂停' : '播放'}这一句` : '请先在歌曲库导入 LRC 与音频'}>{isPlaying ? <Pause size={13} fill="currentColor" /> : <Play size={13} fill="currentColor" />}</button><MasteryButton className={`line-mastery ${isLearned ? 'mastered' : ''}`} type="button" mastered={isLearned} onClick={event => {
                     event.stopPropagation();
                     toggleLearnedLine(line.id);
-                  }} title={isLearned ? '点击改为未掌握' : '点击标记为已掌握'}>{isLearned ? <Check size={12} /> : <Circle size={11} />}<span>{isLearned ? '已掌握' : '未掌握'}</span></button><button className="sentence-explain-link" type="button" aria-expanded={sentenceExpanded} aria-controls={`sentence-analysis-${activeSong.id}-${line.id}`} disabled={!hasSentenceExplanation && Boolean(sentenceExplanationJob)} onClick={event => {
+                  }} title={isLearned ? '点击改为未掌握' : '点击标记为已掌握'}>{isLearned ? <Check size={12} /> : <Circle size={11} />}<span>{isLearned ? '已掌握' : '未掌握'}</span></MasteryButton><button className="sentence-explain-link" type="button" aria-expanded={sentenceExpanded} aria-controls={`sentence-analysis-${activeSong.id}-${line.id}`} disabled={!hasSentenceExplanation && Boolean(sentenceExplanationJob)} onClick={event => {
                     event.stopPropagation();
                     showSentenceExplanation(line);
                   }}><Sparkles size={11} /> {sentenceExpanded ? '收起解析' : hasSentenceExplanation ? '查看解析' : sentenceExplanationJob ? '生成中…' : '生成解析'}</button></div>

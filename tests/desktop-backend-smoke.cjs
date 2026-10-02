@@ -72,6 +72,7 @@ async function main() {
       child.kill()
       await stopped
     }
+    fs.rmSync(profile, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 })
   }
 }
 main().catch(error => { console.error(error); process.exitCode = 1 })

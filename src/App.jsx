@@ -14,6 +14,7 @@ import useDesktopServices from './hooks/useDesktopServices';
 import useSentenceExplanations from './hooks/useSentenceExplanations';
 import usePageNavigation from './hooks/usePageNavigation';
 import MainNavigation from './components/MainNavigation';
+import MotionPresence from './components/MotionPresence';
 import useLineAudio from './hooks/useLineAudio';
 import LibraryPage from './pages/LibraryPage';
 import ReviewPage from './pages/ReviewPage';
@@ -644,7 +645,7 @@ export default function App() {
       {activePage === 'review' && !practiceActive && <ReviewPage reviewQueue={reviewQueue} currentSongReviewCount={currentSongReviewCount} startPractice={startPractice} />}
     </main>
 
-    <footer><span>UTA. Learn Japanese, one lyric at a time.</span><span>自动注音在本机生成 · 词义数据：<a href="https://github.com/tomoshi-app/tomoshi-dict-data" target="_blank" rel="noreferrer">Tomoshi / EDRDG</a> · AI 请求仅在你主动点击后发起</span></footer>
+    <footer><span>UTA · 用日语歌练习发音</span><span>词义数据：<a href="https://github.com/tomoshi-app/tomoshi-dict-data" target="_blank" rel="noreferrer">Tomoshi / EDRDG</a></span></footer>
 
     {backupPreview && <BackupRestoreDialog view={{
       backupBusy,
@@ -682,7 +683,7 @@ export default function App() {
       setImportError
     }} />}
 
-    {detailOpen && <WordDetails view={{
+    <MotionPresence shown={detailOpen}><WordDetails view={{
       detailView,
       activeTokens,
       activeSong,
@@ -707,7 +708,7 @@ export default function App() {
       setDraftMeaning,
       saveMeaning,
       askAiToExplain
-    }} />}
+    }} /></MotionPresence>
 
     {dictionaryPanelOpen && dictionaryStatus && <DictionaryDownloadPanel view={{
       dictionaryStatus,

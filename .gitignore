@@ -22,3 +22,6 @@ desktop/backend-build
 desktop/backend-dist
 .env.local
 .DS_Store
+# Local acceptance helpers and one-off asset generation are not source releases.
+scripts/local/
+启动最新验收版.cmd

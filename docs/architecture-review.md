@@ -12,6 +12,8 @@
 - `useAiSettings`、`useDesktopServices`：模型与 Key、启动后台刷新、词典安装和更新状态。词典下载时较频繁轮询，空闲时降低频率。
 - `useLineAudio`、`useReadingPreferences`、`usePageNavigation`：音频生命周期、显示与动效偏好、横向导航方向。初次打开及重复点击同页不播放切页动效；关闭动效也关闭平滑滚动。
 - `MainNavigation`：共用一个可滑动高亮线，按真实标签尺寸定位；字号和窗口宽度改变时重新测量，导航动效与页面统一为 300ms，并遵守减少动态效果设置。
+- `AnimatedDetails`、`MotionPresence`、`MasteryButton`：折叠展开/收起、侧栏退场、仅新标记掌握时的确认反馈。`animateUi` 统一处理取消与减少动态效果；收起中的内容禁用交互，侧栏动画完成才卸载。
+- `typography.css`：最后加载的可读性规则。默认界面 18px、歌词 28px；支持文字与注音至少 16px，控件不会把歌词词语按钮降为普通界面字号。
 - `segmentation.mjs`：以歌词字符跨度匹配修正。重新分词只保留边界和原文未变的人工读音，重复词不会因下标变化串位；撤销恢复原分词和修正。
 
 ## 后端职责

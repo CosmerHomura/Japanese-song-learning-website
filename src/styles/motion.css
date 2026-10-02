@@ -23,6 +23,10 @@ body .library-cover img { transition:transform 280ms ease; }
   html[data-motion=on] .library-song-card:hover .library-cover img { transform:scale(1.025); }
 }
 .lyric-token:focus-visible { outline:2px solid #527663; outline-offset:3px; }
+.motion-presence { display:contents; }
+.disclosure-content { overflow:hidden; display:flow-root; }
+details:not([open]) > .disclosure-content { display:none; }
+html[data-motion=on] .with-word-sidebar,html[data-motion=on] .page-transition { transition:margin-right 180ms ease; }
 @keyframes page-arrive { from { opacity:.4; transform:translateX(var(--page-shift)); } to { opacity:1; transform:translateX(0); } }
 @keyframes panel-arrive { from { opacity:.5; } to { opacity:1; } }
 @keyframes sidebar-arrive { from { opacity:.4; transform:translateX(12px); } to { opacity:1; transform:translateX(0); } }
