@@ -209,7 +209,13 @@ async function main() {
     await js(`{const input=document.querySelector('.reading-editor input');Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(input,'かぜ');input.dispatchEvent(new Event('input',{bubbles:true}))}`)
     await clickText('保存修正')
     await clickText('结束校对')
-    await js(`document.querySelector('.lyric-token').click()`)
+    // Releasing a drag over another word dispatches click to their common
+    // ancestor, not either token button. It must not toggle the sentence off.
+    await js(`(()=>{const tokens=document.querySelectorAll('.lyric-row:first-child .lyric-token');tokens[0].dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,buttons:1}));tokens[1].dispatchEvent(new PointerEvent('pointerover',{bubbles:true,button:0,buttons:1}));tokens[1].dispatchEvent(new PointerEvent('pointerup',{bubbles:true,button:0,buttons:0}));document.querySelector('.lyric-row:first-child .auto-lyric').dispatchEvent(new MouseEvent('click',{bubbles:true,button:0,detail:1}));})()`)
+    await until(`document.querySelectorAll('.lyric-token.range-selected').length === 2 && !!document.querySelector('.phrase-correction-editor') && !document.querySelector('.motion-presence')?.inert`, 'drag selection keeps segmentation panel open after ancestor click')
+    await until(`document.querySelector('.segmentation-result strong')?.textContent === '春'`, 'dragged phrase stays open through dictionary reparse')
+    await js(`(()=>{const tokens=document.querySelectorAll('.lyric-row:first-child .lyric-token');tokens[2].dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,buttons:1}));tokens[1].dispatchEvent(new PointerEvent('pointerover',{bubbles:true,button:0,buttons:1}));tokens[1].dispatchEvent(new PointerEvent('pointerup',{bubbles:true,button:0,buttons:0}));document.querySelector('.lyric-row:first-child .auto-lyric').dispatchEvent(new MouseEvent('click',{bubbles:true,button:0,detail:1}));})()`)
+    await until(`document.querySelector('.segmentation-result strong')?.textContent === 'の' && !document.querySelector('.motion-presence')?.inert`, 'repeat reverse drag updates phrase without dismissing panel')
     await clickText('选择整句调整分词')
     await js(String.raw`{const input=document.querySelector('[aria-label="分词边界编辑"]');Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(input,'春の\n風');input.dispatchEvent(new Event('input',{bubbles:true}))}`)
     await until(`document.querySelector('.segmentation-result strong')?.textContent === '春の'`, 'live dictionary reparse preview')

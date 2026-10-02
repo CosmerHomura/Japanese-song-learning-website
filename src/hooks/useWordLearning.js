@@ -82,8 +82,20 @@ export default function useWordLearning({
   const focusSuggestion = pendingAiSuggestions.find(item => item.line_id === activeLine.id && item.token_index === focusToken.index);
   useEffect(() => {
     const finishOnWindow = () => finishTokenSelection();
+    // A cross-token drag's click targets the common ancestor, bypassing the
+    // token's onClick. Consume it before the row can clear the new selection.
+    const consumeDragClick = event => {
+      if (!suppressNextTokenClick.current) return;
+      suppressNextTokenClick.current = false;
+      event.preventDefault();
+      event.stopPropagation();
+    };
     window.addEventListener('pointerup', finishOnWindow);
-    return () => window.removeEventListener('pointerup', finishOnWindow);
+    document.addEventListener('click', consumeDragClick, true);
+    return () => {
+      window.removeEventListener('pointerup', finishOnWindow);
+      document.removeEventListener('click', consumeDragClick, true);
+    };
   }, [activeSong.id, annotations]);
   useEffect(() => {
     const dismissOnBlank = event => {
