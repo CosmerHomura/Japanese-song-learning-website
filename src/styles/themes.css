@@ -4,6 +4,11 @@
   --ink:#243d32; --muted:#536456; --border:#c4cbbd; --primary:#315b49;
   --on-primary:#fffef6; --accent:#a4472c; --selected:#f4e4c4; --backdrop:rgba(19,32,25,.58);
 }
+[data-theme=sakura] {
+  color-scheme:light; --canvas:#f7f6f2; --surface:#ffffff; --soft:#edf1f3;
+  --ink:#30383e; --muted:#606a72; --border:#dce1e3; --primary:#526575;
+  --on-primary:#ffffff; --accent:#9f5267; --selected:#f5e7eb; --backdrop:rgba(30,39,46,.42);
+}
 [data-theme=mint] {
   color-scheme:light; --canvas:#e9f3ee; --surface:#f9fffb; --soft:#deece3;
   --ink:#163d30; --muted:#486658; --border:#b3cdbd; --primary:#21644b;
@@ -65,13 +70,29 @@ body #root .settings-dialog { height:min(780px,calc(100dvh - 48px)); display:fle
 .settings-dialog > .settings-content { flex:1; min-height:0; overflow-y:auto; scrollbar-gutter:stable; }
 .theme-choices { padding:0; border:0; margin:18px 0 24px; }
 .theme-choices legend { font-weight:600; margin-bottom:10px; }
-.theme-choices > div { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
+.theme-choices > div { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
 .theme-choices button { display:grid; gap:5px; padding:12px; border:2px solid var(--border); border-radius:12px; text-align:left; }
 .theme-choices button small { color:inherit!important; }
 .theme-swatch { display:flex; height:32px; overflow:hidden; border-radius:7px; }
 .theme-swatch i { flex:1; background:#f3efe5; }.theme-swatch i:nth-child(2) { background:#fffdf5; }.theme-swatch i:nth-child(3) { background:#315b49; }
 .theme-swatch-mint i { background:#e9f3ee; }.theme-swatch-mint i:nth-child(2) { background:#f9fffb; }.theme-swatch-mint i:nth-child(3) { background:#21644b; }
 .theme-swatch-night i { background:#13241f; }.theme-swatch-night i:nth-child(2) { background:#1e342b; }.theme-swatch-night i:nth-child(3) { background:#b3dfb7; }
+.theme-swatch-sakura i { background:#f7f6f2; }.theme-swatch-sakura i:nth-child(2) { background:#f5e7eb; }.theme-swatch-sakura i:nth-child(3) { background:#526575; }
+html[data-theme] body #root .reading-review-link { width:fit-content; min-height:44px; padding:8px 12px; border:1px solid var(--border); border-radius:12px; background:var(--surface); color:var(--accent); font:inherit; cursor:pointer; gap:8px; text-align:left; flex-wrap:wrap; }
+.reading-review-link span { display:inline-flex; align-items:center; gap:4px; font-weight:600; }
+html[data-theme] body #root .reading-review-link:hover { background:var(--selected); border-color:var(--accent); }
+.reading-review-link:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
+html[data-theme=sakura] body #root :is(.settings-trigger,.avatar) { background:var(--selected); color:var(--ink); }
+html[data-theme=sakura] body #root .library-cover { background:#e8eef1; }
+html[data-theme=sakura] body #root .library-song-card:nth-child(even) .library-cover { background:#f1e8e7; }
+html[data-theme=sakura] body #root .library-cover-fallback { color:#526575; }
+html[data-theme=sakura] body #root .library-cover-shade { background:linear-gradient(180deg,transparent 60%,rgba(36,47,55,.1)); }
+html[data-theme=sakura] body #root .library-card-index { color:var(--ink); }
+html[data-theme=sakura] body #root .brand img { filter:grayscale(1); }
+html[data-theme=sakura] body #root .quick-start-guide { background:var(--canvas); }
+html[data-theme=sakura] body #root .quick-start-steps li.complete button { background:var(--soft); color:var(--primary); border-color:var(--border); }
+html[data-theme=sakura] body #root .theme-choices button[aria-pressed=true] { background:var(--surface); border-color:var(--accent); box-shadow:0 0 0 1px var(--accent); }
+html[data-theme=sakura] body #root :is(.library-local-badge,.library-current-badge,.phrase-explain-button,.line-play) { background:var(--primary); color:var(--on-primary); }
 @media (max-width:650px) {
   body #root :is(.backup-backdrop:has(.ai-settings-dialog),.settings-backdrop) { padding:12px; align-items:center; }
   body #root :is(.ai-settings-dialog,.settings-dialog) { height:calc(100dvh - 24px); max-height:calc(100dvh - 24px); border-radius:18px; }

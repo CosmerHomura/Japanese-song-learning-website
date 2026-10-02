@@ -81,6 +81,7 @@ export default function LessonPage({
   } = view;
   const {
     toggleFavorite,
+    jumpToUnresolvedReading,
     setEditingReadings,
     showLibraryPage,
     chooseLine,
@@ -181,7 +182,7 @@ export default function LessonPage({
           {!practiceActive && <>
           <p className="selection-guide"><MousePointer2 size={13} /> 按住鼠标左键向右拖过词语，松开后点高亮段右上角的“AI 解释”。</p>
           {hasSelectedLine && <div className="mobile-word-dock"><div><b>{focusToken.surface} <span lang={readingLang}>{focusDisplayReading}</span></b><small>{wordMeaning || '常用意思待补充'}</small></div><button type="button" onClick={openWordDetails}>查看详情</button></div>}
-          {reviewNeeded > 0 && <p className="annotation-tip warn"><CircleAlert size={13} /> 有 {reviewNeeded} 个词典未能确定读音，请优先人工校对。</p>}
+          {reviewNeeded > 0 && <button type="button" className="annotation-tip warn reading-review-link" onClick={jumpToUnresolvedReading}><CircleAlert size={16} /> 有 {reviewNeeded} 个词读音待确认 <span>前往校对 <ChevronRight size={16} /></span></button>}
           {aiError && <p className="annotation-tip ai-error"><CircleAlert size={13} /> {aiError}</p>}
           {aiReview && <p className="ai-review-summary"><Sparkles size={13} /> AI 已复核 {aiReview.reviewed_token_count} 个词素：{pendingAiSuggestions.length ? <>还有 {pendingAiSuggestions.length} 处待处理建议，<button type="button" onClick={showAiReviewQueue}>查看全部</button></> : aiReview.suggestions?.length ? '所有建议均已处理。' : '未发现明显异常；仍建议以原唱为准。'}</p>}
           <div className="lyrics-list">

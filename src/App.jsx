@@ -1,3 +1,4 @@
+import { unresolvedReadings } from './lib/readingReview.mjs';
 import useSongAnnotation from './hooks/useSongAnnotation';
 import useWordLearning from './hooks/useWordLearning';
 import QuickStartGuide from './components/QuickStartGuide';
@@ -313,7 +314,17 @@ export default function App() {
   const hasReview = reviewItems.some(item => item.songId === activeSong.id && item.lineId === activeLine.id);
   const currentSongReviewCount = reviewQueue.filter(item => item.song.id === activeSong.id).length;
   const totalCorrections = Object.keys(corrections).filter(key => key.startsWith(`${activeSong.id}:`)).length;
-  const reviewNeeded = annotations?.filter(line => activeSong.lines.some(lyric => lyric.id === line.id)).flatMap(line => line.tokens).filter(token => token.needs_review).length || 0;
+  const unresolvedTokens = unresolvedReadings(activeSong, annotations, corrections);
+  const reviewNeeded = unresolvedTokens.length;
+  function jumpToUnresolvedReading() {
+    const currentIndex = unresolvedTokens.findIndex(token => token.line_id === activeLineId && token.token_index === selectedTokenIndex);
+    const target = unresolvedTokens[(currentIndex + 1) % unresolvedTokens.length];
+    if (!target) return;
+    closeDetail();
+    setEditingReadings(true);
+    jumpToAiSuggestion(target);
+    window.requestAnimationFrame(() => document.querySelector('.reading-editor input')?.focus({ preventScroll: true }));
+  }
   const currentSentenceCache = sentenceExplanationsBySong[activeSong.id] || {};
   const readySentenceCount = activeSong.lines.filter(line => hasCachedSentenceExplanation(currentSentenceCache, line)).length;
   const activeSongUsage = aiUsageBySong[activeSong.id] || [];
@@ -616,6 +627,7 @@ export default function App() {
         hasReview
       }} actions={{
         toggleFavorite,
+        jumpToUnresolvedReading,
         setEditingReadings,
         showLibraryPage,
         chooseLine,

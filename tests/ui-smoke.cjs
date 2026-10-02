@@ -40,6 +40,8 @@ async function main() {
     aiReviews: { [song.id]: { reviewed_token_count: 20, suggestions: [{ line_id: 0, token_index: 1, surface: '暮', original_reading: 'くれ', suggested_reading: 'ぐれ', confidence: .8, reason: '测试建议' }] } },
   }
   annotations[0].tokens[1].reading = 'くれ'
+  annotations[0].tokens[0].needs_review = true
+  annotations[0].tokens[1].needs_review = true
   const dist = path.join(root, 'dist')
   let pendingExplanation
   const testTokens = segments => segments.map((surface, index) => ({ index, surface, reading: surface, is_symbol: false, dictionary_form: surface, part_of_speech: '测试词', meaning: '测试释义', examples: [], needs_review: false }))
@@ -142,6 +144,10 @@ async function main() {
     await until(`!document.querySelector('.lyric-row.active')`, 'deselection')
     const colors = await js(`Array.from(document.querySelectorAll('.lyric-row:first-child .lyric-token')).slice(0,2).map(e => getComputedStyle(e).color)`)
     assert.equal(colors[0], colors[1], 'corrected word uses the normal text color')
+    assert.ok(await js(`document.querySelector('.reading-review-link').textContent.includes('有 1 个词')`), 'corrected tokens are excluded from warning')
+    await js(`document.querySelector('.reading-review-link').click()`)
+    await until(`document.querySelector('.reading-editor input') && document.querySelectorAll('.lyric-token')[1].classList.contains('selected')`, 'warning jumps to unresolved word and opens editor')
+    await js(`document.querySelector('.lyrics-panel').dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0}))`)
     await clickText('查看全部')
     await until(`document.activeElement?.id === 'ai-review-queue'`, 'review queue mounts and receives focus')
     await js(`document.querySelectorAll('.lyric-token')[1].click()`)
@@ -265,7 +271,7 @@ async function main() {
       assert.deepEqual(await js(`(()=>{const r=document.querySelector('.ai-settings-dialog').getBoundingClientRect();return [r.x,r.y,r.width,r.height]})()`), settingsBounds, 'settings shell stays in place across categories')
     }
     await clickText('阅读与动效')
-    for (const theme of ['paper','mint','night']) {
+    for (const theme of ['sakura','paper','mint','night']) {
       await js(`document.querySelector('[data-theme-choice=${theme}]').click()`)
       await until(`document.documentElement.dataset.theme === '${theme}'`, 'theme applied')
       assert.equal(await js(`JSON.parse(localStorage.getItem('uta-reading-preferences-v1')).theme`), theme, 'theme saved immediately')
